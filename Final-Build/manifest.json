@@ -1,0 +1,50 @@
+[
+  {
+    "file": "P4can-universal-noreboot.C5.en.FULLFLASH.REV3.X.merged.bin",
+    "size": 33554432,
+    "sha256": "77d97e51f60de3f86e62810ce3b81db5d7c57d5769e3affe96a7afabb3cf3ae3"
+  },
+  {
+    "file": "P4can-universal-noreboot.C5.en.OTA.REV3.X.bin",
+    "size": 1594528,
+    "sha256": "4a963e6925b6901a3227d9e0c5d059270717107b857662cbb7bd6e793fd4e84f",
+    "embeddedHtmlLen": 470145,
+    "zhCN": false
+  },
+  {
+    "file": "P4can-universal-noreboot.C5.zh-CN.FULLFLASH.REV3.X.merged.bin",
+    "size": 33554432,
+    "sha256": "e4b4910b588c9e5b14afe1bc280062f07f71257ee3bbb224c509114840f272c0"
+  },
+  {
+    "file": "P4can-universal-noreboot.C5.zh-CN.OTA.REV3.X.bin",
+    "size": 1599824,
+    "sha256": "91aa1142b1889f9278aec57b1b9bca5724fe79f04dee12660d749e4ab98c3805",
+    "embeddedHtmlLen": 447225,
+    "zhCN": true
+  },
+  {
+    "file": "P4can-universal-noreboot.C6.en.FULLFLASH.REV3.X.merged.bin",
+    "size": 33554432,
+    "sha256": "70b7ec5f52409822fda0a055e78e3ae4f10a219615dda9474f5b6aa08f5f268c"
+  },
+  {
+    "file": "P4can-universal-noreboot.C6.en.OTA.REV3.X.bin",
+    "size": 1594336,
+    "sha256": "aa79e2cdbc0209214c807e3f192c51e7c9bb0b40ab2020ae364686b40873203d",
+    "embeddedHtmlLen": 470145,
+    "zhCN": false
+  },
+  {
+    "file": "P4can-universal-noreboot.C6.zh-CN.FULLFLASH.REV3.X.merged.bin",
+    "size": 33554432,
+    "sha256": "f248c246273caf7c37e81392bf477cbbec4e73195d1576af61146757cb3ea772"
+  },
+  {
+    "file": "P4can-universal-noreboot.C6.zh-CN.OTA.REV3.X.bin",
+    "size": 1599648,
+    "sha256": "2596de3a93df91799273fa0e8fe5a01296002b563f5f01876592ff20a45fb2c7",
+    "embeddedHtmlLen": 447225,
+    "zhCN": true
+  }
+]
