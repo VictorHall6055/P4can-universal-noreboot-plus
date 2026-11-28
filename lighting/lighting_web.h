@@ -11,7 +11,7 @@ static void httpLightingStats(){
   const bool hornActive=lightingState.horn.active;
   const bool rearFogBurstActive=lightingState.rearFogBurstEdges>0u;
   const bool rearFogLampOn=lightingState.rearFogLampOn&&lightingState.rearFogLampMs!=0u&&(uint32_t)(now-lightingState.rearFogLampMs)<=2000u;
-  const bool rearFogTemplateReady=lightingState.vcCtrl.valid&&(uint32_t)(now-lightingState.vcCtrl.ms)<=1500u;
+  const bool rearFogTemplateReady=lightingState.vcCtrl.valid;
   const bool highBeamTemplateReady=lightingState.stalk.valid&&(uint32_t)(now-lightingState.stalk.ms)<=1000u;
   const uint32_t ok=lightingTxOk,fail=lightingTxFail;
   portEXIT_CRITICAL(&lightingSettingsMux);

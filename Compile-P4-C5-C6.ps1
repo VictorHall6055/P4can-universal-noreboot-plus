@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$ArduinoCli = 'C:\Program Files\Arduino CLI\arduino-cli.exe',
-    [string]$PythonExe = 'C:\Users\1234\AppData\Local\Programs\Python\Python312\python.exe',
+    [string]$ArduinoCli = '',
+    [string]$PythonExe = '',
     [string]$OutputRoot = '',
     [switch]$IncludePrev3,
     [switch]$DryRun
@@ -16,11 +16,36 @@ $sketchFiles = @(Get-ChildItem -LiteralPath $sketch -Filter '*.ino' -File)
 if ($sketchFiles.Count -ne 1) {
     throw 'Expected exactly one .ino file in the project folder.'
 }
-if (!(Test-Path -LiteralPath $ArduinoCli -PathType Leaf)) {
-    $ArduinoCli = (Get-Command 'arduino-cli' -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+if ([string]::IsNullOrWhiteSpace($ArduinoCli) -or !(Test-Path -LiteralPath $ArduinoCli -PathType Leaf)) {
+    $cliCandidates = @('C:\Program Files\Arduino CLI\arduino-cli.exe')
+    $cliCandidates += @(Get-ChildItem -Path (Join-Path $env:USERPROFILE '.gemini\antigravity\brain\*\scratch\arduino-cli\arduino-cli.exe') -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $ArduinoCli = $cliCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($ArduinoCli)) {
+        $ArduinoCli = (Get-Command 'arduino-cli' -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    }
 }
-if (!(Test-Path -LiteralPath $PythonExe -PathType Leaf)) {
-    $PythonExe = (Get-Command 'python' -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+if ([string]::IsNullOrWhiteSpace($env:ARDUINO_DIRECTORIES_DATA)) {
+    $defaultBoards = @(Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Arduino15\packages\esp32\hardware\esp32\*\boards.txt') -ErrorAction SilentlyContinue)
+    if ($defaultBoards.Count -eq 0) {
+        $dataCandidate = Get-ChildItem -Path (Join-Path $env:USERPROFILE '.gemini\antigravity\brain\*\scratch\arduino-data') -Directory -ErrorAction SilentlyContinue |
+            Where-Object { @(Get-ChildItem -Path (Join-Path $_.FullName 'packages\esp32\hardware\esp32\*\boards.txt') -ErrorAction SilentlyContinue).Count -gt 0 } |
+            Select-Object -First 1
+        if ($dataCandidate) {
+            $env:ARDUINO_DIRECTORIES_DATA = $dataCandidate.FullName
+        }
+    }
+}
+if ([string]::IsNullOrWhiteSpace($PythonExe) -or !(Test-Path -LiteralPath $PythonExe -PathType Leaf)) {
+    $pyCandidates = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python313\python.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
+        'C:\Users\1234\AppData\Local\Programs\Python\Python312\python.exe'
+    )
+    $PythonExe = $pyCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($PythonExe)) {
+        $PythonExe = (Get-Command 'python' -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    }
 }
 if (!(Test-Path -LiteralPath (Join-Path $sketch 'zh-CN/dashboard_source.zh-CN.html') -PathType Leaf)) {
     throw 'Missing zh-CN/dashboard_source.zh-CN.html'

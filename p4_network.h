@@ -16,6 +16,10 @@ enum P4WifiBandCfg : uint8_t {
   P4_WIFI_BAND_2G   = 1, // 仅 2.4 GHz
   P4_WIFI_BAND_5G   = 2  // 仅 5 GHz（仅 C5）
 };
+enum P4WifiApIpMode : uint8_t {
+  P4_WIFI_AP_IP_DEFAULT = 0, // 192.168.4.1（默认私有地址）
+  P4_WIFI_AP_IP_PUBLIC  = 1  // 100.100.1.1（伪公网/CGNAT地址，兼容禁私网设备）
+};
 static bool p4NetworkPinsReady = false;
 static bool p4NetworkWifiStarted = false;
 static bool p4NetworkApStarted = false;
@@ -33,10 +37,25 @@ static constexpr uint8_t p4WifiDefaultBand = P4_WIFI_BAND_2G;
 static uint8_t p4WifiBandCfg = p4WifiDefaultBand;
 static uint16_t p4WifiApChanCfg = 0; // 0 = 自动（C5 默认 ch36 / C6 默认 ch1）
 static bool p4Wifi6Cfg = true;       // 802.11ax Wi-Fi 6
+static uint8_t p4WifiApIpModeCfg = P4_WIFI_AP_IP_DEFAULT;
 static int32_t p4WifiLastBandErr = 0;
 static int32_t p4WifiLastProtoErr = 0;
 static bool p4WifiRadioLoaded = false;
 static uint32_t p4NetworkApConfigEpoch = 0;
+
+static inline IPAddress p4WifiApIp() {
+  return (p4WifiApIpModeCfg == P4_WIFI_AP_IP_PUBLIC)
+             ? IPAddress(100, 100, 1, 1)
+             : IPAddress(192, 168, 4, 1);
+}
+static inline IPAddress p4WifiApLeaseStart() {
+  return (p4WifiApIpModeCfg == P4_WIFI_AP_IP_PUBLIC)
+             ? IPAddress(100, 100, 1, 2)
+             : IPAddress(192, 168, 4, 2);
+}
+static inline const char *p4WifiApIpStr() {
+  return (p4WifiApIpModeCfg == P4_WIFI_AP_IP_PUBLIC) ? "100.100.1.1" : "192.168.4.1";
+}
 
 // 由 p4_uplink.h 实现：上游中继开着时 Wi-Fi 必须以 AP+STA 起，
 // 否则下面的 WiFi.mode(WIFI_AP) 会把 STA 顶掉，中继永远连不上。
@@ -73,35 +92,43 @@ static void p4WifiRadioLoad() {
   p4WifiBandCfg = p4WifiDefaultBand;
   p4WifiApChanCfg = 0;
   p4Wifi6Cfg = true;
+  p4WifiApIpModeCfg = P4_WIFI_AP_IP_DEFAULT;
   Preferences p;
   if (p.begin("wifiap", true)) {
     uint8_t bm = p.getUChar("band_mode", p4WifiDefaultBand);
     uint16_t ch = p.getUShort("ap_chan", 0);
     bool ax = p.getBool("wifi6", true);
+    uint8_t ipm = p.getUChar("ap_ip_mode", P4_WIFI_AP_IP_DEFAULT);
     p.end();
     if (!p4WifiSupports5g || bm > P4_WIFI_BAND_5G) bm = p4WifiSupports5g ? bm : P4_WIFI_BAND_2G;
     if (bm > P4_WIFI_BAND_5G) bm = p4WifiDefaultBand;
     if (!p4WifiChannelValidForBand(ch, bm)) ch = 0;
+    if (ipm > P4_WIFI_AP_IP_PUBLIC) ipm = P4_WIFI_AP_IP_DEFAULT;
     p4WifiBandCfg = bm;
     p4WifiApChanCfg = ch;
     p4Wifi6Cfg = ax;
+    p4WifiApIpModeCfg = ipm;
   }
 }
 
-static bool p4WifiRadioSave(uint8_t bandMode, uint16_t apChan, bool wifi6) {
+static bool p4WifiRadioSave(uint8_t bandMode, uint16_t apChan, bool wifi6,
+                            uint8_t apIpMode = p4WifiApIpModeCfg) {
   if (!p4WifiSupports5g) bandMode = P4_WIFI_BAND_2G;
-  if (bandMode > P4_WIFI_BAND_5G || !p4WifiChannelValidForBand(apChan, bandMode)) return false;
+  if (bandMode > P4_WIFI_BAND_5G || !p4WifiChannelValidForBand(apChan, bandMode) ||
+      apIpMode > P4_WIFI_AP_IP_PUBLIC) return false;
   Preferences p;
   if (!p.begin("wifiap", false)) return false;
   const bool ok = p.putUChar("band_mode", bandMode) == 1 &&
                   p.putUShort("ap_chan", apChan) == sizeof(uint16_t) &&
-                  p.putBool("wifi6", wifi6) == 1;
+                  p.putBool("wifi6", wifi6) == 1 &&
+                  p.putUChar("ap_ip_mode", apIpMode) == 1;
   p.end();
   if (ok) {
     p4WifiRadioLoaded = true;
     p4WifiBandCfg = bandMode;
     p4WifiApChanCfg = apChan;
     p4Wifi6Cfg = wifi6;
+    p4WifiApIpModeCfg = apIpMode;
   }
   return ok;
 }
@@ -205,8 +232,9 @@ static bool p4NetworkStartAp(const char *ssid, const char *password) {
 #ifdef ARDUINO
   p4WifiApplyRadioSettings();
   const int ch = p4WifiEffectiveChannel();
-  if (!WiFi.softAPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1),
-                         IPAddress(255,255,255,0), IPAddress(192,168,4,2),
+  const IPAddress apIp = p4WifiApIp();
+  const IPAddress apLease = p4WifiApLeaseStart();
+  if (!WiFi.softAPConfig(apIp, apIp, IPAddress(255,255,255,0), apLease,
                          IPAddress(223,5,5,5))) {
     p4NetworkPhase = P4_NET_ADDRESS_FAILED;
     return false;

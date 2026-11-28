@@ -2296,7 +2296,8 @@ static bool wifiApActivate(const String &requestedSsid, const String &requestedP
 // Called from setup before the web/BLE/USB writer tasks are launched. These
 // boot messages therefore cannot interleave with the USB CAN capture protocol.
 static void wifiApBootStart() {
-  // 先读中继配置：p4NetworkBeginWifi() 要根据它决定起 AP 还是 AP+STA。
+  // 先读中继与域名过滤配置：p4NetworkBeginWifi() 要根据它决定起 AP 还是 AP+STA。
+  p4DnsFilterLoad();
   p4UpLoad();
 #ifdef P4CAN_HOSTED_C5
   Serial.println("[P4-CAN WiFi] Starting ESP-Hosted C5...");
@@ -2313,8 +2314,10 @@ static void wifiApBootStart() {
     wifiApLoadConfig(ssid, password);
     ready = wifiApActivate(ssid, password, true);
   }
+  p4DnsProxyStartTask();
   if (ready)
-    Serial.printf("[P4-CAN WiFi] AP %s / http://192.168.4.1\n", wifiApActiveSsid.c_str());
+    Serial.printf("[P4-CAN WiFi] AP %s / http://%s\n",
+                  wifiApActiveSsid.c_str(), WiFi.softAPIP().toString().c_str());
   else
     Serial.printf("[P4-CAN WiFi] %s; web task will retry, BLE waits for AP\n", p4NetworkPhaseName());
 }
@@ -2350,6 +2353,8 @@ static String wifiApStatusJson() {
   jw.u32("effectiveChannel", (uint32_t)p4WifiEffectiveChannel());
   jw.u32("actualChannel", (uint32_t)WiFi.channel());
   jw.boolean("wifi6", p4Wifi6Cfg);
+  jw.u32("apIpMode", (uint32_t)p4WifiApIpModeCfg);
+  jw.string("apIpTarget", p4WifiApIpStr());
   jw.string("activeBand", p4WifiLiveBandName());
   jw.string("bandModeActive", p4WifiLiveBandModeName());
   jw.finish();
@@ -2417,6 +2422,45 @@ static void httpWifiUplinkScan() {
 
 static bool httpBoolArg(const char *name, bool &out);
 
+static void httpWifiFilter() {
+  server.sendHeader("Cache-Control", "no-store");
+  if (server.method() == HTTP_GET) {
+    server.send(200, "application/json", p4DnsFilterStatusJson());
+    return;
+  }
+  p4DnsFilterLoad();
+  uint8_t nextMode = p4DnsModeCfg;
+  bool nextSpoof = p4DnsProbeSpoofCfg;
+  if (server.hasArg("mode")) {
+    const String m = server.arg("mode");
+    if (m != "0" && m != "1" && m != "2") {
+      server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid mode\"}");
+      return;
+    }
+    nextMode = (uint8_t)m.toInt();
+  }
+  if (server.hasArg("probeSpoof")) {
+    if (!httpBoolArg("probeSpoof", nextSpoof)) {
+      server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid probeSpoof\"}");
+      return;
+    }
+  }
+  const bool hasBl = server.hasArg("blacklist");
+  const bool hasWl = server.hasArg("whitelist");
+  const String bl = hasBl ? server.arg("blacklist") : String();
+  const String wl = hasWl ? server.arg("whitelist") : String();
+  if (!p4DnsFilterSave(nextMode, nextSpoof, hasBl, bl, hasWl, wl)) {
+    server.send(500, "application/json", "{\"ok\":false,\"error\":\"nvs-write\"}");
+    return;
+  }
+  if (p4UpConnected) {
+    p4UpDnsNeedResync = true;
+    p4UpDnsOk = p4UpSyncDns();
+    p4UpDnsNeedResync = false;
+  }
+  server.send(200, "application/json", p4DnsFilterStatusJson());
+}
+
 static void httpWifiRadio() {
   if (server.method() == HTTP_GET) {
     httpWifiStatus();
@@ -2426,6 +2470,7 @@ static void httpWifiRadio() {
   uint8_t nextBand = p4WifiBandCfg;
   uint16_t nextChan = p4WifiApChanCfg;
   bool nextWifi6 = p4Wifi6Cfg;
+  uint8_t nextIpMode = p4WifiApIpModeCfg;
   bool any = false;
   if (server.hasArg("bandMode")) {
     any = true;
@@ -2459,6 +2504,17 @@ static void httpWifiRadio() {
       return;
     }
   }
+  if (server.hasArg("apIpMode")) {
+    any = true;
+    String ipm = server.arg("apIpMode");
+    ipm.trim();
+    if (ipm == "0" || ipm == "192.168.4.1") nextIpMode = P4_WIFI_AP_IP_DEFAULT;
+    else if (ipm == "1" || ipm == "100.100.1.1") nextIpMode = P4_WIFI_AP_IP_PUBLIC;
+    else {
+      server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid apIpMode\"}");
+      return;
+    }
+  }
   if (!any) {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"no radio parameter\"}");
     return;
@@ -2466,8 +2522,9 @@ static void httpWifiRadio() {
   if (!p4WifiChannelValidForBand(nextChan, nextBand)) {
     nextChan = 0; // 自动匹配所选频段默认信道
   }
-  const bool changed = (nextBand != p4WifiBandCfg) || (nextChan != p4WifiApChanCfg) || (nextWifi6 != p4Wifi6Cfg);
-  if (!p4WifiRadioSave(nextBand, nextChan, nextWifi6)) {
+  const bool changed = (nextBand != p4WifiBandCfg) || (nextChan != p4WifiApChanCfg) ||
+                       (nextWifi6 != p4Wifi6Cfg) || (nextIpMode != p4WifiApIpModeCfg);
+  if (!p4WifiRadioSave(nextBand, nextChan, nextWifi6, nextIpMode)) {
     server.send(500, "application/json", "{\"ok\":false,\"error\":\"NVS write failed\"}");
     return;
   }
@@ -2479,9 +2536,9 @@ static void httpWifiRadio() {
   String ssid = wifiApActiveSsid, password = wifiApActivePassword;
   if (!ssid.length() || !password.length()) wifiApLoadConfig(ssid, password);
   const bool ok = wifiApActivate(ssid, password, true);
-  P4CAN_SERIAL_PRINTF("WiFi: radio apply %s band=%s ch=%d wifi6=%d\n",
+  P4CAN_SERIAL_PRINTF("WiFi: radio apply %s band=%s ch=%d wifi6=%d ip=%s\n",
                       ok ? "OK" : "FAILED", p4WifiBandCfgName(p4WifiBandCfg),
-                      p4WifiEffectiveChannel(), p4Wifi6Cfg ? 1 : 0);
+                      p4WifiEffectiveChannel(), p4Wifi6Cfg ? 1 : 0, p4WifiApIpStr());
 }
 
 static void httpWifiApply() {
@@ -4609,7 +4666,84 @@ static void httpRebootP4Can() {
   restartP4CanSafely();
 }
 
+static bool p4DnsIsOwnHost(String host) {
+  host.trim();
+  host.toLowerCase();
+  const int colon = host.indexOf(':');
+  if (colon >= 0) host.remove(colon);
+  if (host.length() == 0) return true;
+  if (host == "192.168.4.1" || host == "100.100.1.1" ||
+      host == "p4can.local" || host == "localhost" || host == "127.0.0.1") {
+    return true;
+  }
+  if (host == WiFi.softAPIP().toString()) return true;
+  const String staIp = WiFi.localIP().toString();
+  if (staIp != "0.0.0.0" && host == staIp) return true;
+  return false;
+}
+
+static bool p4DnsHandleHttpSpoofIfApplicable() {
+  if (!p4DnsProbeSpoofEnabled()) return false;
+  const String rawHost = server.header("Host");
+  if (p4DnsIsOwnHost(rawHost)) return false;
+
+  String host = rawHost;
+  host.trim();
+  host.toLowerCase();
+  const int colon = host.indexOf(':');
+  if (colon >= 0) host.remove(colon);
+
+  String uri = server.uri();
+  uri.toLowerCase();
+  String ua = server.header("User-Agent");
+  ua.toLowerCase();
+
+  __atomic_add_fetch(&p4DnsProbeCount, 1u, __ATOMIC_RELAXED);
+  server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  server.sendHeader("Connection", "close");
+
+  if (uri.indexOf("generate_204") >= 0 || uri.indexOf("gen_204") >= 0 ||
+      host.indexOf("gstatic") >= 0 || host.indexOf("android") >= 0 ||
+      host.indexOf("google") >= 0 || host.indexOf("miui") >= 0 ||
+      host.indexOf("hicloud") >= 0 || host.indexOf("huawei") >= 0) {
+    server.send(204, "text/plain", "");
+    return true;
+  }
+  if (uri == "/connecttest.txt" || host.indexOf("msftconnecttest") >= 0) {
+    server.send(200, "text/plain", "Microsoft Connect Test");
+    return true;
+  }
+  if (uri == "/ncsi.txt" || host.indexOf("msftncsi") >= 0) {
+    server.send(200, "text/plain", "Microsoft NCSI");
+    return true;
+  }
+  if (uri == "/canonical.html" || host.indexOf("firefox") >= 0) {
+    server.send(200, "text/html",
+                "<meta http-equiv=\"refresh\" content=\"0;url=https://support.mozilla.org/kb/captive-portal\"/>");
+    return true;
+  }
+  if (uri == "/hotspot-detect.html" || uri == "/library/test/success.html" ||
+      host.indexOf("apple") >= 0) {
+    server.send(200, "text/html",
+                "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+    return true;
+  }
+  if (ua.indexOf("android") >= 0 || ua.indexOf("dalvik") >= 0 || ua.indexOf("okhttp") >= 0) {
+    server.send(204, "text/plain", "");
+    return true;
+  }
+  server.send(200, "text/html",
+              "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+  return true;
+}
+
+static void httpCaptiveOrNotFound() {
+  if (p4DnsHandleHttpSpoofIfApplicable()) return;
+  server.send(404, "text/plain", "Not Found");
+}
+
 static void httpRoot() {
+  if (p4DnsHandleHttpSpoofIfApplicable()) return;
   server.sendHeader("Content-Encoding", "gzip");
   server.sendHeader("Cache-Control", "no-store");
   server.send_P(200, "text/html", (const char*)INDEX_HTML_GZ, INDEX_HTML_GZ_LEN);
@@ -7038,6 +7172,8 @@ static void webTask(void *arg) {
   server.on("/api/wifi/uplink", HTTP_GET, httpWifiUplink);
   server.on("/api/wifi/uplink", HTTP_POST, httpWifiUplink);
   server.on("/api/wifi/uplink/scan", HTTP_GET, httpWifiUplinkScan);
+  server.on("/api/wifi/filter", HTTP_GET, httpWifiFilter);
+  server.on("/api/wifi/filter", HTTP_POST, httpWifiFilter);
   server.on("/api/ota/status", HTTP_GET, httpOtaStatus);
   server.on("/update", HTTP_POST, httpOtaFinish, httpOtaUpload);
 
@@ -7167,6 +7303,9 @@ static void webTask(void *arg) {
     server.on("/api/s3xy/clear", HTTP_POST, httpS3xyClear);
     server.on("/api/s3xy/log.csv", HTTP_GET, httpS3xyLogCsv);
   }
+  const char *kHdrKeys[] = {"Host", "User-Agent"};
+  server.collectHeaders(kHdrKeys, 2);
+  server.onNotFound(httpCaptiveOrNotFound);
   server.begin();
 
   for (;;) {

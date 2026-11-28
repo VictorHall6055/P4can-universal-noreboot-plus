@@ -1,50 +1,42 @@
 [
   {
-    "file": "P4can-universal-noreboot.C5.en.FULLFLASH.REV3.X.merged.bin",
-    "size": 33554432,
-    "sha256": "77d97e51f60de3f86e62810ce3b81db5d7c57d5769e3affe96a7afabb3cf3ae3"
+    "file": "P4can-universal-noreboot.C5.en.OTA.REV3.X.bin",
+    "size": 1612112,
+    "sha256": "cfe23da1f39e7facf55fcd81bdb6d01802ef8811669f82655e35b8083dae02e9"
   },
   {
-    "file": "P4can-universal-noreboot.C5.en.OTA.REV3.X.bin",
-    "size": 1594528,
-    "sha256": "4a963e6925b6901a3227d9e0c5d059270717107b857662cbb7bd6e793fd4e84f",
-    "embeddedHtmlLen": 470145,
-    "zhCN": false
+    "file": "P4can-universal-noreboot.C5.en.FULLFLASH.REV3.X.merged.bin",
+    "size": 33554432,
+    "sha256": "4d218f868828134f153b709f576bb1d276c7033c9e54fba904a9ad7f9d051189"
+  },
+  {
+    "file": "P4can-universal-noreboot.C5.zh-CN.OTA.REV3.X.bin",
+    "size": 1617440,
+    "sha256": "d291cf41bbe459690a250f3a6638e7d22ee49bc0dadcd6053288d00d503c2f54"
   },
   {
     "file": "P4can-universal-noreboot.C5.zh-CN.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "e4b4910b588c9e5b14afe1bc280062f07f71257ee3bbb224c509114840f272c0"
+    "sha256": "945d8e66fc867ca29c31182045ca51353ec990c1b8cb8401751f5b9ccd238b5c"
   },
   {
-    "file": "P4can-universal-noreboot.C5.zh-CN.OTA.REV3.X.bin",
-    "size": 1599824,
-    "sha256": "91aa1142b1889f9278aec57b1b9bca5724fe79f04dee12660d749e4ab98c3805",
-    "embeddedHtmlLen": 447225,
-    "zhCN": true
+    "file": "P4can-universal-noreboot.C6.en.OTA.REV3.X.bin",
+    "size": 1611888,
+    "sha256": "013b3ad2392e87c30a1df95b12554add335493328d0e52e16ac650fe83ebfa2b"
   },
   {
     "file": "P4can-universal-noreboot.C6.en.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "70b7ec5f52409822fda0a055e78e3ae4f10a219615dda9474f5b6aa08f5f268c"
+    "sha256": "b52c81e123c97d236c94f6b927fc4ae2a11ec59d93c0e065a7f74248dd0de497"
   },
   {
-    "file": "P4can-universal-noreboot.C6.en.OTA.REV3.X.bin",
-    "size": 1594336,
-    "sha256": "aa79e2cdbc0209214c807e3f192c51e7c9bb0b40ab2020ae364686b40873203d",
-    "embeddedHtmlLen": 470145,
-    "zhCN": false
+    "file": "P4can-universal-noreboot.C6.zh-CN.OTA.REV3.X.bin",
+    "size": 1617216,
+    "sha256": "eb9a3c07d68b99f10ad2717929100c3c4976cd0257aab739d237c74f987ef907"
   },
   {
     "file": "P4can-universal-noreboot.C6.zh-CN.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "f248c246273caf7c37e81392bf477cbbec4e73195d1576af61146757cb3ea772"
-  },
-  {
-    "file": "P4can-universal-noreboot.C6.zh-CN.OTA.REV3.X.bin",
-    "size": 1599648,
-    "sha256": "2596de3a93df91799273fa0e8fe5a01296002b563f5f01876592ff20a45fb2c7",
-    "embeddedHtmlLen": 447225,
-    "zhCN": true
+    "sha256": "7df0d67bdf7dfe38425174187b435e6a5d7c120d9e612692071942a2983167b2"
   }
 ]

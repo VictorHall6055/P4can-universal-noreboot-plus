@@ -1,10 +1,21 @@
-# P4can-universal-noreboot-plus (`v3.35.3-norestart2-plus`)
+# P4can-universal-noreboot-plus (`3.35.3.2`)
 
 > **Language / 语言**: **English** | **[简体中文说明 (README.zh-CN.md)](README.zh-CN.md)**
 
 An enhanced ESP32-P4 Tesla CAN gateway firmware built upon **[CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot)** (`v3.35.3-norestart2`) and integrated with verified lighting & pilot interactions inspired by **[i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more)**.
 
 While adding new lighting, networking, and diagnostic capabilities, **TLSSC Anti-Reboot (`0x331` via `tlssc_norestart.h`) strictly retains the highest TX and task priority** on CAN-B (`P4_TLSSC_NR_PRIORITY_YIELD`). Both **ESP32-P4 + ESP32-C5** (5 GHz Dual-Band & Wi-Fi 6) and **ESP32-P4 + ESP32-C6** (2.4 GHz Wi-Fi 6) boards are supported with 32 MB flash builds.
+
+> **v3.35.3.2 Updates**:
+> - Fixed **2021 Model 3 Rear Fog (`0x273` / `0x3E3`)** compatibility (wider BODY cadence tolerance, `0x3E3` 2-bit status decoding, `40ms` refresh, non-blocking fallback).
+> - Fixed **AP Forced High Beam** dropping after a few seconds (cross-core signed timestamp check, push-echo race fix, cooldown re-arm).
+> - Added **Repeater DNS Domain Filter** (Blacklist / Whitelist persisted in NVS) with **200 / 204 Connectivity Probe Spoofing**.
+> - Added **Dashboard Access IP Option** (`192.168.4.1` default vs `100.100.1.1` pseudo-public IP) and updated project URL to `https://github.com/VictorHall6055/P4can-universal-noreboot-plus`.
+
+<p align="center">
+  <img src="docs/images/wifi-dns-filter.png" alt="Repeater DNS Domain Filter & 200/204 Probe Spoof" width="380" />
+  <img src="docs/images/about-v33532.png" alt="About Firmware Version 3.35.3.2" width="380" />
+</p>
 
 ---
 
@@ -33,9 +44,10 @@ Turn your P4-CAN module into an internet-sharing **AP + STA NAPT repeater** so p
   <img src="docs/images/wifi-repeater.png" alt="Wi-Fi Repeater Mode with NAPT & DNS" width="380" />
 </p>
 
-### 3. ESP32-P4 + ESP32-C5 Wi-Fi Fix & Dual-Band Wi-Fi 6 (`802.11ax`) Settings
+### 3. ESP32-P4 + ESP32-C5 Wi-Fi Fix, Dual-Band Wi-Fi 6 (`802.11ax`) & Access Address (`192.168.4.1` / `100.100.1.1`)
 - **ESP-Hosted C5 Compatibility Fix (`tools/patch_c5_hosted.py`)**: Patches `libespressif__esp_hosted.a(transport_drv.c.obj)` (`process_priv_communication`) so ESP32-P4 recognizes the ESP32-C5 slave chip ID (`23` / `esp32c5`) instead of rejecting it as C6-only (`13`), resolving the "C5 board boots with no Wi-Fi" issue.
 - **Dual-Band & Wi-Fi 6 UI Controls (`#panelWireless`)**: On C5 hardware (`P4CAN_HOSTED_C5`), exposes **Band Mode** (`2.4G+5G Auto` / `5G Only` / `2.4G Only`), **AP Channel** (`Auto`, 2.4 GHz Ch 1–11, 5 GHz Ch 36–165), and **Wi-Fi 6 (`802.11ax`)** toggle persisted in NVS (with a toggleable compatibility fallback to 11n/ac for older client devices). Automatically hides 5 GHz controls on C6 hardware.
+- **Selectable Dashboard Access IP**: Choose between **`192.168.4.1`** (default) and **`100.100.1.1`** (pseudo-public IP) persisted in NVS, enabling access on devices/clients that restrict `192.168.x.x` private subnets.
 
 <p align="center">
   <img src="docs/images/wifi-c5-wifi6.png" alt="ESP32-C5 Dual-Band 5GHz & Wi-Fi 6 Radio Settings" width="380" />

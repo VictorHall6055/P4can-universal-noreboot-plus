@@ -1,3 +1,13 @@
+# P4-CAN Universal 3.35.3.2 — 2026-11-28
+
+基于 [VictorHall6055/P4can-universal-noreboot-plus](https://github.com/VictorHall6055/P4can-universal-noreboot-plus)（版本号 `3.35.3.2`）：
+
+- **修复 2021 款 Model 3 后雾灯无效问题（`lighting/`）**：放宽车身 `0x273` (`UI_vehicleControl`) 的捕获 DLC 与报文时效（允许非首帧捕获并在 2 秒内优先切换为 BODY 总线模板），修正 `0x3E3` `VCRIGHT_rearFogLightStatus` 2-bit 状态位解析（`1=ON`, 排除 `3=SNA` 误判），提升周期发送刷新频率至 `40ms` 以避免被车辆原厂周期帧立刻覆盖。
+- **修复 AP 强制远光开启几秒后退出问题（`lighting/`）**：引入跨核签名时间戳差值保护 `lightingAgeOkPure`，消除 CAN RX 任务并发更新与无符号减法回绕触发的 `3s` 超时退出及 `0x249` 自发回显误判，并将 AP1 补推上限放宽至 12 次且增加 `2.5s` 冷却自动重置。
+- **新增 Wi-Fi 中继 DNS 域名过滤 + 200/204 联网检测伪装（`p4_dns_filter.h`, `p4_uplink.h`, `web_api.h`）**：支持「关闭 / 黑名单 / 白名单」三模式与多行域名规则 NVS 持久化保存（重启不丢失）；中继在线时自动通过 DHCP 下发 P4 本地 DNS 代理地址，对常见系统联网探针域名及黑名单放行策略按平台返回 HTTP `200` / `204` 伪装有互联网，并在前端「中继域名过滤」卡片展示实时规则数、拦截次数与检测响应次数。
+- **新增模块访问 IP 地址切换（`p4_network.h`, `web_api.h`）**：在「无线连接」面板支持切换默认 `192.168.4.1` 与伪公网 `100.100.1.1`，并持久化到 NVS，解决部分设备/车载终端屏蔽 `192.168.x.x` 私有网段导致无法访问后台的问题。
+- **关于页与脚本更新**：版本更新为 `3.35.3.2`，项目源代码地址更新为 `https://github.com/VictorHall6055/P4can-universal-noreboot-plus`。
+
 # P4-CAN Universal v3.35.3-norestart2-plus — 2026-11-28
 
 基于 [CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot) 并融合 [i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more) 灯光与领航能力（保持防重启 `0x331` 最高发送优先级）：

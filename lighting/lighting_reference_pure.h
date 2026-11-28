@@ -225,6 +225,12 @@ static constexpr uint32_t LIGHTING_AP_GATE_FRESH_MS = 3000u;
 //
 // TODO(verify): 5 and 6 were never observed on this car; they are accepted only
 // because teslaApStateActivePure already treats them as engaged everywhere else.
+static inline bool lightingAgeOkPure(uint32_t nowMs, uint32_t stampMs, uint32_t windowMs) {
+  if (stampMs == 0u) return false;
+  const int32_t diff = (int32_t)(nowMs - stampMs);
+  return diff <= 0 || (uint32_t)diff <= windowMs;
+}
+
 static inline bool lightingApStateEngagedPure(uint8_t dasState) {
   return dasState == 3u || dasState == 4u || dasState == 5u || dasState == 6u;
 }
@@ -240,7 +246,7 @@ static inline bool lightingApGateActivePure(bool gateLatched, bool dasValid,
   // off", which is a different statement.
   if (dasMs == 0u) return true;
   if (!dasValid) return false;
-  if ((uint32_t)(nowMs - dasMs) > LIGHTING_AP_GATE_FRESH_MS) return false;
+  if (!lightingAgeOkPure(nowMs, dasMs, LIGHTING_AP_GATE_FRESH_MS)) return false;
   return lightingApStateEngagedPure(dasState);
 }
 
@@ -310,10 +316,8 @@ static inline bool lightingHighBeamFeedbackLostPure(bool demandBeamLit,
                                                     uint8_t mirror3f5d4 = 0u,
                                                     bool mirror3f5d4Seen = false) {
   if (!demandBeamLit) return false;
-  const bool f6Fresh = status3f6Ms != 0u &&
-                       (uint32_t)(nowMs - status3f6Ms) <= LIGHTING_3F6_FRESH_MS;
-  const bool f5Fresh = mirror3f5Ms != 0u &&
-                       (uint32_t)(nowMs - mirror3f5Ms) <= LIGHTING_3F5_FRESH_MS;
+  const bool f6Fresh = lightingAgeOkPure(nowMs, status3f6Ms, LIGHTING_3F6_FRESH_MS);
+  const bool f5Fresh = lightingAgeOkPure(nowMs, mirror3f5Ms, LIGHTING_3F5_FRESH_MS);
   // Newest wins; a tie belongs to 0x3F5. A stale 0x3F6 must never veto a fresh
   // 0x3F5, which is what the old "0x3F6 first" ordering did.
   if (f6Fresh && (!f5Fresh || (int32_t)(status3f6Ms - mirror3f5Ms) > 0)) {
@@ -348,11 +352,9 @@ static inline void lightingBeamReportPure(uint32_t nowMs, uint32_t status3f6Ms,
   fresh = false;
   lit = false;
   cancel = false;
-  const bool f6Fresh = status3f6Ms != 0u &&
-                       (uint32_t)(nowMs - status3f6Ms) <= LIGHTING_3F6_FRESH_MS &&
+  const bool f6Fresh = lightingAgeOkPure(nowMs, status3f6Ms, LIGHTING_3F6_FRESH_MS) &&
                        status3f6 != LIGHTING_3F6_BEAM_SNA;
-  const bool f5Fresh = mirror3f5Ms != 0u &&
-                       (uint32_t)(nowMs - mirror3f5Ms) <= LIGHTING_3F5_FRESH_MS;
+  const bool f5Fresh = lightingAgeOkPure(nowMs, mirror3f5Ms, LIGHTING_3F5_FRESH_MS);
   // 0x3F6 answers only when it is strictly newer; a tie belongs to 0x3F5's d4.
   if (f6Fresh && (!f5Fresh || (int32_t)(status3f6Ms - mirror3f5Ms) > 0)) {
     // Only an explicit OFF is evidence of a cancel. FAULT ("the lamp is not
@@ -520,7 +522,8 @@ static constexpr uint32_t LIGHTING_AP1_PUSH_SPACING_MS = 10u;
 // reported lit. The retry is bounded on purpose: an unbounded loop on the stalk
 // channel reads to the body controller as a jammed lever.
 static constexpr uint32_t LIGHTING_AP1_TOPUP_RETRY_MS = 300u;
-static constexpr uint8_t LIGHTING_AP1_TOPUP_MAX_ATTEMPTS = 8u;
+static constexpr uint8_t LIGHTING_AP1_TOPUP_MAX_ATTEMPTS = 12u;
+static constexpr uint32_t LIGHTING_AP1_SPENT_COOLDOWN_MS = 2500u;
 // A car push still on the wire owns the channel. The window is measured from the
 // last PUSH frame seen (not from the rising edge) because the car's own train
 // keeps delivering frames for ~150 ms after the edge.
@@ -607,7 +610,15 @@ static inline bool lightingAp1TopupDuePure(LightingAp1PushPure &s, bool demand,
   }
   // A train in flight always finishes, whatever the report says.
   if (s.left != 0u) return true;
-  if (s.spent) return false;
+  if (s.spent) {
+    if (s.lastTrainMs == 0u ||
+        (uint32_t)(nowMs - s.lastTrainMs) < LIGHTING_AP1_SPENT_COOLDOWN_MS) {
+      return false;
+    }
+    // 冷却期结束后允许在 AP 强制远光仍处于激活状态时重新补发，防止自动远光回落后再也点不亮。
+    s.spent = false;
+    s.attempts = 0u;
+  }
   // The driver's own push owns the channel (T1).
   if (profile == LIGHTING_TOPUP_PROFILE_RETRY) {
     if (carPushActive) {

@@ -17,6 +17,7 @@ member at link time.
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -105,17 +106,32 @@ def patch_object(obj_bytes: bytes) -> bytearray:
     return data
 
 
+def _candidate_tool_roots() -> list[Path]:
+    roots: list[Path] = []
+    env_data = os.environ.get("ARDUINO_DIRECTORIES_DATA", "").strip()
+    if env_data:
+        roots.append(Path(env_data) / "packages" / "esp32" / "tools")
+    roots.append(Path.home() / "AppData" / "Local" / "Arduino15" / "packages" / "esp32" / "tools")
+    brain_root = Path.home() / ".gemini" / "antigravity" / "brain"
+    if brain_root.is_dir():
+        for p in sorted(brain_root.glob("*/scratch/arduino-data/packages/esp32/tools")):
+            roots.append(p)
+    return roots
+
+
 def find_esp32p4_tools() -> tuple[Path, Path, Path]:
-    local_app = Path.home() / "AppData" / "Local" / "Arduino15" / "packages" / "esp32" / "tools"
-    libs = sorted((local_app / "esp32p4-libs").glob("*/lib/libespressif__esp_hosted.a"))
-    ars = sorted((local_app / "esp-rv32").glob("*/bin/riscv32-esp-elf-ar*"))
-    objdumps = sorted((local_app / "esp-rv32").glob("*/bin/riscv32-esp-elf-objdump*"))
-    if not libs or not ars or not objdumps:
-        raise FileNotFoundError(f"Could not locate esp32p4-libs / esp-rv32 tools under {local_app}")
-    # Prefer exact 3.3.12 if multiple versions exist
-    lib_312 = [p for p in libs if "3.3.12" in p.parts]
-    lib = lib_312[0] if lib_312 else libs[-1]
-    return lib, ars[-1], objdumps[-1]
+    searched: list[str] = []
+    for root in _candidate_tool_roots():
+        searched.append(str(root))
+        libs = sorted((root / "esp32p4-libs").glob("*/lib/libespressif__esp_hosted.a"))
+        ars = sorted((root / "esp-rv32").glob("*/bin/riscv32-esp-elf-ar*"))
+        objdumps = sorted((root / "esp-rv32").glob("*/bin/riscv32-esp-elf-objdump*"))
+        if libs and ars and objdumps:
+            # Prefer exact 3.3.12 if multiple versions exist
+            lib_312 = [p for p in libs if "3.3.12" in p.parts]
+            lib = lib_312[0] if lib_312 else libs[-1]
+            return lib, ars[-1], objdumps[-1]
+    raise FileNotFoundError(f"Could not locate esp32p4-libs / esp-rv32 tools under {searched}")
 
 
 def main() -> int:

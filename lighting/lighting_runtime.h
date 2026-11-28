@@ -14,11 +14,12 @@
 struct LightingTemplate {
   bool valid=false, sent=false;
   uint32_t ms=0, sentMs=0;
-  uint8_t data[8]={}, last[8]={}, counter=0;
+  uint8_t data[8]={}, last[8]={}, counter=0, dlc=8;
 };
 struct LightingRuntime {
   uint32_t epoch=0;
   LightingTemplate stalk, body, vcCtrl;
+  bool vcCtrlBodySeen=false;
   LightingAp1RunPure run={};
   LightingAp1PushPure train={};
   LightingDynHighPure dynamic={};
@@ -150,8 +151,23 @@ static void lightingObserve(uint8_t bus,uint32_t id,uint8_t dlc,const uint8_t *d
     s.brake[i]=i==0?lightingDecodeBrake145Pure(data,dlc):lightingDecodeBrake39DPure(data,dlc);s.brakeMs[i]=ms;s.brakeSeen[i]=true;
   }
   if((bus==P4_BODY||bus==P4_CHASSIS)&&id==LIGHTING_ID_REAR_FOG_LAMP&&dlc>=2u){
-    s.rearFogLampOn=(data[LIGHTING_3E3_D1]&LIGHTING_3E3_LAMP_MASK)!=0u;
+    // 0x3E3 d1[1:0] VCRIGHT_rearFogLightStatus: 0=OFF, 1=ON, 2=FAULT, 3=SNA
+    s.rearFogLampOn=(data[LIGHTING_3E3_D1]&0x03u)==1u;
     s.rearFogLampMs=ms;
+  }
+  if(id==LIGHTING_ID_VEHICLE_CONTROL&&dlc>=3u&&dlc<=8u){
+    const bool fromBody=(bus==P4_BODY);
+    if(fromBody||(!s.vcCtrlBodySeen&&!s.vcCtrl.valid)){
+      const bool echo=s.vcCtrl.sent&&lightingAgeOkPure(ms,s.vcCtrl.sentMs,119u)&&memcmp(data,s.vcCtrl.last,dlc)==0;
+      if(!echo){
+        s.vcCtrl.valid=true;
+        s.vcCtrl.ms=ms;
+        s.vcCtrl.dlc=dlc;
+        if(fromBody)s.vcCtrlBodySeen=true;
+        memset(s.vcCtrl.data,0,8);
+        memcpy(s.vcCtrl.data,data,dlc);
+      }
+    }
   }
   if(bus==P4_BODY){
     if(id==0x3f5u&&dlc>=5u){s.beam5=lightingHighBeamControlStatePure(data);s.beamD4=data[4];s.beam5Ms=ms;}
@@ -172,18 +188,10 @@ static void lightingObserve(uint8_t bus,uint32_t id,uint8_t dlc,const uint8_t *d
         }
       }
     }
-    if(id==LIGHTING_ID_VEHICLE_CONTROL&&dlc==8u){
-      const bool echo=s.vcCtrl.sent&&uint32_t(ms-s.vcCtrl.sentMs)<120u&&memcmp(data,s.vcCtrl.last,8)==0;
-      if(!echo){
-        s.vcCtrl.valid=true;
-        s.vcCtrl.ms=ms;
-        memcpy(s.vcCtrl.data,data,8);
-      }
-    }
     if((id==0x249u&&dlc==4u)||(id==0x3e9u&&dlc==8u)){
       auto &t=id==0x249u?s.stalk:s.body;
       const bool stalk=id==0x249u;
-      const bool echo=t.sent&&uint32_t(ms-t.sentMs)<(stalk?700u:200u)&&
+      const bool echo=t.sent&&lightingAgeOkPure(ms,t.sentMs,stalk?699u:199u)&&
         (stalk?((data[1]&0xf0u)==(t.last[1]&0xf0u)&&memcmp(data+2,t.last+2,2)==0):memcmp(data,t.last,6)==0);
       const bool checksum=stalk?data[0]==leftStalkChecksumPure(data,data[1]&15u):data[7]==teslaAdditiveChecksumPure(0x3e9u,data);
       if(!echo&&checksum){
@@ -191,7 +199,7 @@ static void lightingObserve(uint8_t bus,uint32_t id,uint8_t dlc,const uint8_t *d
         if(!stalk||(s.train.left==0&&!s.hs2.armed&&!s.strobeReleaseNeeded))t.counter=stalk?(data[1]&15u):(data[6]>>4);
         if(stalk){
           const uint8_t dir=(data[1]>>4)&3u;
-          const bool quiet=!t.sent||uint32_t(ms-t.sentMs)>=LIGHTING_AP1_TX_QUIET_MS;
+          const bool quiet=!t.sent||!lightingAgeOkPure(ms,t.sentMs,LIGHTING_AP1_TX_QUIET_MS-1u);
           lightingAp1RunStepPure(s.run,lightingPermission&&ap&&activeTurnSignalVariant==TURN_SIGNAL_STALK,dir==2u&&s.prevPush!=2u,quiet,ms);
           s.prevPush=dir;if(dir==2u)s.carPushMs=ms;
           if(P4_LIGHTING_BODY_TX_SUPPORTED()&&lightingStrobeGesture&&activeTurnSignalVariant==TURN_SIGNAL_STALK){
@@ -261,7 +269,7 @@ static void lightingService(){
     LightingAp1TopupEventPure event={};
     bool train=false;
     if(!beam)lightingAp1PushResetPure(s.train);
-    else if(fresh||s.train.left!=0u)train=lightingAp1TopupDuePure(s.train,beam,fresh,lit,s.carPushMs!=0u&&uint32_t(now-s.carPushMs)<120u,s.carPushMs,now,LIGHTING_TOPUP_PROFILE_RETRY,&event);
+    else if(fresh||s.train.left!=0u)train=lightingAp1TopupDuePure(s.train,beam,fresh,lit,s.carPushMs!=0u&&lightingAgeOkPure(now,s.carPushMs,119u),s.carPushMs,now,LIGHTING_TOPUP_PROFILE_RETRY,&event);
 
     const bool stalkReady=!blinkerBusy&&s.stalk.valid&&uint32_t(now-s.stalk.ms)<=200u&&((s.stalk.data[1]>>4)&3u)==0u&&(s.stalk.data[2]&15u)==0u;
     const bool strobeActive=s.hs2.armed&&isStalkCar;
@@ -310,7 +318,7 @@ static void lightingService(){
       send=true;txTarget=TX_STALK_AP1;out.can_id=0x249u;out.can_dlc=4;memcpy(out.data,s.stalk.data,4);
       counter=(s.stalk.counter+1u)&15u;out.data[1]=(out.data[1]&0xc0u)|0x20u|counter;
       out.data[0]=leftStalkChecksumPure(out.data,counter);s.lastStalkAttempt=now;
-    }else if(s.body.valid&&uint32_t(now-s.body.ms)<=1500u&&uint32_t(now-s.lastBodyAttempt)>=20u&&
+    }else if(s.body.valid&&uint32_t(now-s.body.ms)<=3000u&&uint32_t(now-s.lastBodyAttempt)>=20u&&
              (beam||requested||s.dynSent||(!isStalkCar&&(hornActiveNow||s.horn3e9Sent)))){
       send=true;txTarget=TX_BODY_3E9;out.can_id=0x3e9u;out.can_dlc=8;memcpy(out.data,s.body.data,8);
       // Preserve the car's brake request and all unrelated bits. No beam write on stop.
@@ -325,22 +333,25 @@ static void lightingService(){
       }
       counter=(s.body.counter+1u)&15u;out.data[6]=(out.data[6]&15u)|(counter<<4);
       out.data[7]=teslaAdditiveChecksumPure(0x3e9u,out.data);s.lastBodyAttempt=now;
-    }else if(s.vcCtrl.valid&&uint32_t(now-s.vcCtrl.ms)<=1500u){
+    }else if(s.vcCtrl.valid){
       const bool reverseDemand=lightingReverseRearFog&&gearMs!=0u&&uint32_t(now-gearMs)<=1000u&&gear==TESLA_GEAR_R;
       bool send273=false;
       if(s.rearFogBurstEdges>0u){
         if(s.lastRearFogEdgeMs==0u||uint32_t(now-s.lastRearFogEdgeMs)>=LIGHTING_REAR_FOG_HALF_PERIOD_MS){
           wantRearFogOn=(s.rearFogBurstEdges%2u)==0u;
           send273=true;isBurstEdge=true;
+        }else if(uint32_t(now-s.lastRearFogAttempt)>=40u){
+          wantRearFogOn=s.rearFogBurstLevel;
+          send273=true;
         }
       }else if(reverseDemand||lightingPilotMode==3u){
         wantRearFogOn=true;
-        if(!s.rearFogAsserted||uint32_t(now-s.lastRearFogAttempt)>=200u){
+        if(!s.rearFogAsserted||uint32_t(now-s.lastRearFogAttempt)>=40u){
           send273=true;
         }
       }else if(lightingPilotMode==2u){
         wantRearFogOn=(now%1000u)<450u;
-        if(wantRearFogOn!=s.rearFogAsserted||(wantRearFogOn&&uint32_t(now-s.lastRearFogAttempt)>=150u)){
+        if(wantRearFogOn!=s.rearFogAsserted||uint32_t(now-s.lastRearFogAttempt)>=40u){
           send273=true;
         }
       }else if(s.rearFogAsserted){
@@ -349,7 +360,7 @@ static void lightingService(){
       }
       if(send273){
         send=true;txTarget=TX_REAR_FOG_273;
-        out.can_id=LIGHTING_ID_VEHICLE_CONTROL;out.can_dlc=8;
+        out.can_id=LIGHTING_ID_VEHICLE_CONTROL;out.can_dlc=s.vcCtrl.dlc>=3u?s.vcCtrl.dlc:8u;
         memcpy(out.data,s.vcCtrl.data,8);
         out.data[LIGHTING_273_D2]=wantRearFogOn
           ?(uint8_t)(out.data[LIGHTING_273_D2]|LIGHTING_273_REAR_FOG_MASK)

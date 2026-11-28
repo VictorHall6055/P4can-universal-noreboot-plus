@@ -43,6 +43,7 @@ static uint32_t p4UpLastTryMs = 0;
 static uint32_t p4UpAttempts = 0;
 static uint32_t p4UpConnectedMs = 0;
 static uint32_t p4UpLastApEpoch = 0;
+static volatile bool p4UpDnsNeedResync = false;
 static char p4UpLastErr[40] = "";
 static char p4UpApDnsStr[20] = "223.5.5.5";
 
@@ -92,6 +93,7 @@ static void p4UpDisable() {
   p4UpDnsOk = false;
   p4UpConnectedMs = 0;
   p4UpLastErr[0] = '\0';
+  p4DnsProxyUpdateRuntime(false, 0u);
   p4UpSave();
   WiFi.AP.enableNAPT(false);
   WiFi.disconnect(false, false);
@@ -100,33 +102,48 @@ static void p4UpDisable() {
 }
 
 // 必须同时写入 AP 的 netif DNS 并将 ESP_NETIF_DOMAIN_NAME_SERVER 设成 OFFER_DNS 位掩码！
-// 之前直接把 IPv4 字节当 dhcps_offer_t 传入导致 DHCP 停止下发 DNS（电脑连接无网络）。
+// 当域名过滤或联网检测伪装启用时，下发 P4 AP 地址作为客户端 DNS 由本机 UDP 53 代理；
+// 否则直接下发上游 STA DNS，不经代理。
 static bool p4UpSyncDns() {
   esp_netif_t *sta = WiFi.STA.netif();
   esp_netif_t *ap = WiFi.AP.netif();
   if (!sta || !ap) return false;
 
-  esp_netif_dns_info_t dns = {};
-  const bool staDnsValid = (esp_netif_get_dns_info(sta, ESP_NETIF_DNS_MAIN, &dns) == ESP_OK) &&
-                           dns.ip.type == ESP_IPADDR_TYPE_V4 &&
-                           dns.ip.u_addr.ip4.addr != 0 &&
-                           dns.ip.u_addr.ip4.addr != (uint32_t)IPAddress(192, 168, 4, 1);
+  const uint32_t selfApRaw = (uint32_t)p4WifiApIp();
+  esp_netif_dns_info_t upDns = {};
+  const bool staDnsValid = (esp_netif_get_dns_info(sta, ESP_NETIF_DNS_MAIN, &upDns) == ESP_OK) &&
+                           upDns.ip.type == ESP_IPADDR_TYPE_V4 &&
+                           upDns.ip.u_addr.ip4.addr != 0 &&
+                           upDns.ip.u_addr.ip4.addr != selfApRaw &&
+                           upDns.ip.u_addr.ip4.addr != (uint32_t)IPAddress(192, 168, 4, 1) &&
+                           upDns.ip.u_addr.ip4.addr != (uint32_t)IPAddress(100, 100, 1, 1);
   if (!staDnsValid) {
-    dns = {};
-    dns.ip.type = ESP_IPADDR_TYPE_V4;
-    dns.ip.u_addr.ip4.addr = (uint32_t)IPAddress(223, 5, 5, 5);
+    upDns = {};
+    upDns.ip.type = ESP_IPADDR_TYPE_V4;
+    upDns.ip.u_addr.ip4.addr = (uint32_t)IPAddress(223, 5, 5, 5);
   }
-  esp_netif_dns_info_t backup = {};
-  backup.ip.type = ESP_IPADDR_TYPE_V4;
-  backup.ip.u_addr.ip4.addr = (dns.ip.u_addr.ip4.addr == (uint32_t)IPAddress(223, 5, 5, 5))
-                                  ? (uint32_t)IPAddress(8, 8, 8, 8)
-                                  : (uint32_t)IPAddress(223, 5, 5, 5);
+  const uint32_t upstreamRaw = upDns.ip.u_addr.ip4.addr;
+  p4DnsProxyUpdateRuntime(p4UpConnected || WiFi.status() == WL_CONNECTED, upstreamRaw);
 
-  const uint8_t *b = (const uint8_t *)&dns.ip.u_addr.ip4.addr;
+  esp_netif_dns_info_t apMain = upDns;
+  esp_netif_dns_info_t apBackup = {};
+  apBackup.ip.type = ESP_IPADDR_TYPE_V4;
+  if (p4DnsFilterActive()) {
+    apMain = {};
+    apMain.ip.type = ESP_IPADDR_TYPE_V4;
+    apMain.ip.u_addr.ip4.addr = selfApRaw;
+    apBackup.ip.u_addr.ip4.addr = selfApRaw;
+  } else {
+    apBackup.ip.u_addr.ip4.addr = (upstreamRaw == (uint32_t)IPAddress(223, 5, 5, 5))
+                                      ? (uint32_t)IPAddress(8, 8, 8, 8)
+                                      : (uint32_t)IPAddress(223, 5, 5, 5);
+  }
+
+  const uint8_t *b = (const uint8_t *)&apMain.ip.u_addr.ip4.addr;
   snprintf(p4UpApDnsStr, sizeof(p4UpApDnsStr), "%u.%u.%u.%u", b[0], b[1], b[2], b[3]);
 
-  (void)esp_netif_set_dns_info(ap, ESP_NETIF_DNS_MAIN, &dns);
-  (void)esp_netif_set_dns_info(ap, ESP_NETIF_DNS_BACKUP, &backup);
+  (void)esp_netif_set_dns_info(ap, ESP_NETIF_DNS_MAIN, &apMain);
+  (void)esp_netif_set_dns_info(ap, ESP_NETIF_DNS_BACKUP, &apBackup);
 
   const esp_err_t stopErr = esp_netif_dhcps_stop(ap);
   dhcps_offer_t offer = OFFER_DNS;
@@ -269,6 +286,7 @@ static void p4UpLoop() {
 
   if (!p4UplinkWanted()) {
     p4UpConnected = false;
+    p4DnsProxyUpdateRuntime(false, 0u);
     return;
   }
 
@@ -290,10 +308,11 @@ static void p4UpLoop() {
   const bool linked = (WiFi.status() == WL_CONNECTED);
   if (linked) {
     const bool apRestarted = (p4NetworkApConfigEpoch != p4UpLastApEpoch);
-    if (!p4UpConnected || apRestarted) {
+    if (!p4UpConnected || apRestarted || p4UpDnsNeedResync) {
       p4UpConnected = true;
-      p4UpConnectedMs = apRestarted && p4UpConnectedMs ? p4UpConnectedMs : now;
+      p4UpConnectedMs = (apRestarted || p4UpDnsNeedResync) && p4UpConnectedMs ? p4UpConnectedMs : now;
       p4UpLastApEpoch = p4NetworkApConfigEpoch;
+      p4UpDnsNeedResync = false;
       p4UpLastErr[0] = '\0';
       p4UpDnsOk = p4UpSyncDns();
       p4UpNapt = p4UpEnableNapt();
@@ -307,6 +326,7 @@ static void p4UpLoop() {
   p4UpConnected = false;
   p4UpNapt = false;
   p4UpDnsOk = false;
+  p4DnsProxyUpdateRuntime(false, 0u);
   if ((uint32_t)(now - p4UpLastTryMs) >= P4_UP_RETRY_MS) {
     p4UpAttempts++;
     p4UpLastTryMs = now;

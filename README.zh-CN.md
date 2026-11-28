@@ -1,10 +1,21 @@
-# P4can-universal-noreboot-plus（`v3.35.3-norestart2-plus`）
+# P4can-universal-noreboot-plus（`3.35.3.2`）
 
 > **语言 / Language**：**简体中文** | **[English (README.md)](README.md)**
 
 本项目以 **[CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot)**（`v3.35.3-norestart2`）为核心基线与后台界面风格，融合 **[i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more)** 中已在实车 CAN 总线上验证可行的灯光、喇叭与领航模式功能，并完整适配 **ESP32-P4 + ESP32-C5（5GHz 双频 + Wi-Fi 6）** 与 **ESP32-P4 + ESP32-C6** 硬件。
 
 设计第一原则：**防重启模块（`tlssc_norestart.h` / `0x331`）在任何时候均保留最高发送与任务调度优先级（`P4_TLSSC_NR_PRIORITY_YIELD`）**，新增功能绝不抢占防重启窗口。
+
+> **v3.35.3.2 更新内容**：
+> - 修复 **21 款 Model 3 后雾灯功能无效** 问题（放宽车身 `0x273` 模板捕获与保持时效、修正 `0x3E3` 2-bit 状态位解析、提升刷新频率至 `40ms`）。
+> - 修复 **AP 强制远光保持几秒即退出** 问题（跨核时间戳签名防回绕、区分自发 `0x249` 回显、支持冷却自动重激活）。
+> - 新增 **中继 DNS 域名过滤**（关闭 / 黑名单 / 白名单持久化保存至 NVS，掉电/重启不丢失）与 **联网检测返回 200 / 204 伪装有互联网**。
+> - 新增 **模块后台访问地址切换**（默认 `192.168.4.1` / 伪公网 `100.100.1.1`），适配无法访问 `192.168.4.1` 私有地址的设备，并更新开源仓库地址为 `https://github.com/VictorHall6055/P4can-universal-noreboot-plus`。
+
+<p align="center">
+  <img src="docs/images/wifi-dns-filter.png" alt="中继域名过滤与 200/204 联网检测伪装" width="380" />
+  <img src="docs/images/about-v33532.png" alt="关于页面 3.35.3.2" width="380" />
+</p>
 
 ---
 
@@ -32,9 +43,10 @@
   <img src="docs/images/wifi-repeater.png" alt="Wi-Fi 中继模式与 NAPT 状态" width="380" />
 </p>
 
-### 3. ESP32-P4 + C5 无 Wi-Fi 修复与双频 Wi-Fi 6（`802.11ax`）设置
+### 3. ESP32-P4 + C5 无 Wi-Fi 修复、双频 Wi-Fi 6 与模块访问地址（`192.168.4.1` / `100.100.1.1`）
 - **C5 芯片通讯协议修复（`tools/patch_c5_hosted.py`）**：修补 Arduino ESP32 `3.3.12` 中 `libespressif__esp_hosted.a(transport_drv.c.obj)` 的 `process_priv_communication` 从机型号校验（将仅允许 `13 / esp32c6` 补丁为兼容 `23 / esp32c5`），解决部分 ESP32-P4 + C5 板子刷机后 Wi-Fi 无法启动的问题。
 - **C5 双频与 Wi-Fi 6 独立设置（无线连接面板）**：仅在 C5 固件中开放 **频段模式**（`自动双频 2.4G+5G` / `仅 5GHz` / `仅 2.4GHz`）、**热点信道**（`自动`、2.4G Ch 1–11、5G Ch 36–165）以及 **Wi-Fi 6 (`802.11ax`)** 开关，并持久化至 NVS（老旧设备连不上时可随时关闭 Wi-Fi 6 回退 11n/ac）。C6 固件自动隐藏 5GHz 选项。
+- **模块访问地址可选**：支持默认 **`192.168.4.1`** 与伪公网地址 **`100.100.1.1`** 切换并保存至 NVS，方便无法访问 `192.168.x.x` 私有网段的终端打开后台。
 
 <p align="center">
   <img src="docs/images/wifi-c5-wifi6.png" alt="ESP32-C5 双频 5GHz 与 Wi-Fi 6 设置界面" width="380" />

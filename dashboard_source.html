@@ -983,7 +983,7 @@ body.p4-2027 #preheatRaw .listkey{overflow-wrap:anywhere}
 <div class="body"><div class="r"><span class="rk2">Template / age / RX</span><span id="countryR79StockMeta">WAITING FOR 0x3FD MUX1</span></div><div class="r"><span class="rk2">Stock raw</span><span class="labRaw" id="countryR79StockRaw">—</span></div></div>
 <div class="softNote">Monitoring only. Values are sampled before the R79 overlay applies bit19=0 and the selected bit47 policy.</div></section>
 </div></section>
-<section class="panel" id="panelAbout"><div class="panelin"><div class="paneltop"><button aria-label="Back" class="backbtn">‹</button><div class="paneltitle">Settings</div></div><div class="panelHero">About</div><section class="card"><div class="body" style="padding:20px"><div class="sectiontitle">Firmware Version:</div><div id="aboutFirmwareVersion" style="font-size:28px;font-weight:750;margin-top:12px"></div><div class="sectiontitle" style="margin-top:24px">Developers:</div><div class="softNote" style="font-size:14px">LP_YL, XBmod, Frizull, 3dfx, SupXL</div><div class="sectiontitle">Source Code:</div><a href="https://github.com/06066060606060/P4can-universal-unlock" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:8px;overflow-wrap:anywhere;color:inherit">https://github.com/06066060606060/P4can-universal-unlock</a><div class="sectiontitle" style="margin-top:24px">Project Discord:</div><a href="https://discord.gg/u8AvvVbJSm" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:8px;overflow-wrap:anywhere;color:inherit">https://discord.gg/u8AvvVbJSm</a></div></section></div></section>
+<section class="panel" id="panelAbout"><div class="panelin"><div class="paneltop"><button aria-label="Back" class="backbtn">‹</button><div class="paneltitle">Settings</div></div><div class="panelHero">About</div><section class="card"><div class="body" style="padding:20px"><div class="sectiontitle">Firmware Version:</div><div id="aboutFirmwareVersion" style="font-size:28px;font-weight:750;margin-top:12px"></div><div class="sectiontitle" style="margin-top:24px">Developers:</div><div class="softNote" style="font-size:14px">LP_YL, XBmod, Frizull, 3dfx, SupXL</div><div class="sectiontitle">Source Code:</div><a href="https://github.com/VictorHall6055/P4can-universal-noreboot-plus" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:8px;overflow-wrap:anywhere;color:inherit">https://github.com/VictorHall6055/P4can-universal-noreboot-plus</a><div class="sectiontitle" style="margin-top:24px">Project Discord:</div><a href="https://discord.gg/u8AvvVbJSm" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:8px;overflow-wrap:anywhere;color:inherit">https://discord.gg/u8AvvVbJSm</a></div></section></div></section>
 <section class="panel" id="panelLighting"><div class="panelin"><div class="paneltop"><button aria-label="Back" class="backbtn">‹</button><div class="paneltitle">Settings</div></div><div class="panelHero">Lighting Features</div><div class="panelSub">High Beam, Strobe &amp; Rear Fog Pilot Mode</div><section class="card"><div class="labControlRow"><div><div class="labControlTitle">AP Forced High Beam</div><div class="labControlSub">Enable during Autopilot, then push the stalk away to force high beam. Push again to stop and restore adaptive high beam.</div></div><label class="toggle"><input aria-label="AP Forced High Beam" id="lightingAp" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">High-Beam Strobe Gesture (3x Pull)</div><div class="labControlSub">Pull the left stalk 3 times within 3s to start 70ms high-beam strobe (0x249); pull once to stop.</div></div><label class="toggle"><input aria-label="High-Beam Strobe Gesture" id="lightingStrobeGesture" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">High-Beam Strobe (Immediate)</div><div class="labControlSub">Manually toggle 70ms high-beam strobe (session-only, never auto-starts on boot).</div></div><label class="toggle"><input aria-label="High-Beam Strobe" id="lightingStrobeActive" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">Horn-to-High-Beam Flash</div><div class="labControlSub">Reads horn button (0x3C2 MUX0): tap for 2 quick flashes; hold horn for continuous strobe until released.</div></div><label class="toggle"><input aria-label="Horn-to-High-Beam Flash" id="lightingHornFlash" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">Dynamic Brake Light</div><div class="labControlSub">Strobe Brake Light when pressing pedal (0x3E9).</div></div><select aria-label="Dynamic Brake Light" class="selectArrow labSelect" id="lightingBrake" disabled><option value="0">Off</option><option value="1">Light press</option><option value="2">Hard press</option></select></div><div class="labControlRow"><div><div class="labControlTitle">Rear Fog Pilot Mode</div><div class="labControlSub">Controls BODY 0x273 rear fog bit; Gesture mode supports Right Wheel Hold + Left Wheel Down for 20 flashes.</div></div><select aria-label="Rear Fog Pilot Mode" class="selectArrow labSelect" id="lightingPilot" disabled><option value="0">Off</option><option value="1">Gesture / 20x Burst</option><option value="2">Pilot Pulse (1Hz)</option><option value="3">Pilot Steady</option></select></div><div class="labControlRow"><div><div class="labControlTitle">Reverse Gear Rear Fog Assist</div><div class="labControlSub">Automatically illuminates Rear Fog (0x273) while in Reverse gear (0x118=R).</div></div><label class="toggle"><input aria-label="Reverse Gear Rear Fog Assist" id="lightingRevFog" type="checkbox" disabled/><span class="track"></span></label></div><div class="controlgrid"><button class="btn primary" id="lightingFogBurstBtn" style="grid-column:1/-1" disabled>Trigger Rear Fog Burst (20x)</button></div><div class="body"><div class="r"><span>Rear Fog Lamp Feedback (0x3E3)</span><span id="lightingFogState">—</span></div><div class="r"><span>Templates Ready (Stalk / Body)</span><span id="lightingTemplates">—</span></div><div class="r"><span>Lighting TX OK / Fail</span><span id="lightingTxCounts">—</span></div></div></section><div class="softNote" id="lightingStatus" role="status">Loading…</div><div class="softNote">Note: Unverified/unreachable TSL BLE items (ambient, seats/HVAC) are not fabricated on CAN. Anti-reboot 0x331 always retains highest TX priority.</div></div></section>
 <section class="panel" id="panelSmartShift"><div class="panelin"><div class="paneltop"><button aria-label="Back" class="backbtn">‹</button><div class="paneltitle">Settings</div></div><div class="panelHero">SmartShift</div><div class="panelSub">Experimental automatic shifting · brake confirmation required</div><section class="card"><div class="labControlRow"><div><div class="labControlTitle">Automatic shifting</div><div class="labControlSub">Allow BODY gear requests after brake confirmation</div></div><label class="toggle"><input id="autoShift_enabled" aria-label="Automatic shifting" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">Require seat belt</div><div class="labControlSub">Block requests when the seat belt is not confirmed</div></div><label class="toggle"><input id="autoShift_requireSeatbelt" aria-label="Require seat belt" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">D/R steering confirmation</div><div class="labControlSub">When no radar or vehicle candidate is available</div></div><label class="toggle"><input id="autoShift_steeringFallback" aria-label="D/R steering confirmation" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">Park steering selection</div><div class="labControlSub">Select D/R by steering movement while holding the brake</div></div><label class="toggle"><input id="autoShift_parkSteeringFallback" aria-label="Park steering selection" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">D/R obstacle steering confirmation</div><div class="labControlSub">Require steering movement for radar candidates in D/R</div></div><label class="toggle"><input id="autoShift_requireSteering" aria-label="D/R obstacle steering confirmation" type="checkbox" disabled/><span class="track"></span></label></div><div class="labControlRow"><div class="labControlTitle">Protocol</div><select class="selectArrow labSelect" id="autoShift_protocol" aria-label="Shifting protocol" disabled><option value="AUTO">AUTO</option><option value="V12">V12 · 0x229</option><option value="V13V14">V13/V14 · 0x678</option></select></div><div class="labControlRow"><div class="labControlTitle">Speed source</div><select class="selectArrow labSelect" id="autoShift_speedBus" aria-label="Speed source" disabled><option value="0">BODY</option><option value="1">CHASSIS</option><option value="2">PARTY</option></select></div><div class="body" style="padding:18px"><div class="fieldgrid"><div class="field"><label for="autoShift_maxKph">Maximum shifting speed (km/h)</label><input id="autoShift_maxKph" type="number" min="0" max="8" step="1" value="8" disabled/></div><div class="field"><label for="autoShift_hardCutKph">Hard speed cutoff (km/h)</label><input id="autoShift_hardCutKph" type="number" min="1" max="30" step="1" value="10" disabled/></div><div class="field"><label for="autoShift_cooldownMs">Cooldown (ms)</label><input id="autoShift_cooldownMs" type="number" min="0" max="10000" step="1" value="200" disabled/></div><div class="field"><label for="autoShift_obstacleCm">Obstacle threshold (cm)</label><input id="autoShift_obstacleCm" type="number" min="1" max="499" step="1" value="60" disabled/></div><div class="field"><label for="autoShift_pDeg">Park steering angle (°)</label><input id="autoShift_pDeg" type="number" min="1" max="720" step="1" value="15" disabled/></div><div class="field"><label for="autoShift_drDeg">D/R steering angle (°)</label><input id="autoShift_drDeg" type="number" min="1" max="720" step="1" value="30" disabled/></div><div class="field"><label for="autoShift_obstacleDeg">Obstacle steering angle (°)</label><input id="autoShift_obstacleDeg" type="number" min="1" max="720" step="1" value="30" disabled/></div></div></div><div class="body"><div class="r"><span>Execution state</span><span id="autoShiftState">—</span></div><div class="r"><span>Candidate / source</span><span id="autoShiftCandidate">—</span></div><div class="r"><span>Gate / reason</span><span id="autoShiftReason">—</span></div><div class="r"><span>Requests / confirmed / failed</span><span id="autoShiftCounts">—</span></div><div class="r"><span>Request templates V12 / V13–14</span><span id="autoShiftTemplates">—</span></div></div><div class="softNote">A new brake press is required for each request. Unsupported routes and stale inputs block execution. Park steering selection is calibrated only for Model Y Legacy.</div><div class="softNote">Source by kl79613</div></section></div></section>
 <section class="panel" id="panelBatteryPreheat"><div class="panelin"><div class="paneltop"><button aria-label="Back" class="backbtn">‹</button><div class="paneltitle">Settings</div></div>
@@ -1152,9 +1152,9 @@ body.p4-2027 #preheatRaw .listkey{overflow-wrap:anywhere}
 <div class="detailSectionLabel">WI-FI ACCESS POINT</div>
 <section class="card"><div class="fieldgrid"><div class="field full"><label>WI-FI NAME (SSID)</label><input autocomplete="off" id="wifiSsid" maxlength="32" placeholder="P4-CAN-XXXX" type="text"/></div><div class="field full"><label>NEW PASSWORD · LEAVE BLANK TO KEEP CURRENT</label><div style="display:flex;align-items:center;gap:8px"><input autocomplete="new-password" id="wifiPassword" maxlength="63" minlength="8" placeholder="Leave blank to keep current password" style="min-width:0;flex:1" type="password"/><button class="textbtn" id="wifiPasswordToggle" style="flex:0 0 auto;padding:5px" type="button">Show</button></div></div></div><div class="controlgrid"><button class="btn primary" id="wifiApply" style="grid-column:1/-1">Apply Wi-Fi Settings</button></div></section>
 <div class="softNote" id="wifiPasswordHint">Wi-Fi settings are saved in NVS and preserved by Reset Feature Settings. Applying a change restarts only the access point, not CAN, BLE or the MCU. Reconnect to the new Wi-Fi if iPhone Auto-Join is disabled; the dashboard will resume automatically.</div>
-<div class="detailSectionLabel">5GHZ &amp; WI-FI 6 RADIO (C5 / C6)</div>
-<section class="card"><div class="detailRow"><div><div class="detailLeft">Co-processor / Active Band</div><div class="detailSub" id="wifiRadioNote">Detecting ESP-Hosted capabilities…</div></div><span class="detailValue" id="wifiRadioBandState">—</span></div><div class="labControlRow"><div><div class="labControlTitle">Band Mode (5GHz on C5)</div><div class="labControlSub">Use Auto Dual-Band for repeater mode to scan both 2.4GHz and 5GHz routers.</div></div><select aria-label="Band Mode" class="selectArrow labSelect" id="wifiBandMode"><option value="auto">Auto (2.4G + 5G)</option><option value="5g">5 GHz Only</option><option value="2g">2.4 GHz Only</option></select></div><div class="labControlRow"><div><div class="labControlTitle">AP Channel</div><div class="labControlSub">Defaults to Ch36 on 5GHz, Ch1 on 2.4GHz.</div></div><select aria-label="AP Channel" class="selectArrow labSelect" id="wifiApChannel"><option value="0">Auto</option><option value="36">5GHz · Ch36</option><option value="149">5GHz · Ch149</option><option value="1">2.4GHz · Ch1</option><option value="6">2.4GHz · Ch6</option><option value="11">2.4GHz · Ch11</option></select></div><div class="labControlRow"><div><div class="labControlTitle">Wi-Fi 6 (802.11ax)</div><div class="labControlSub">Enable 802.11ax protocol; disable only for legacy client compatibility.</div></div><label class="toggle"><input aria-label="Wi-Fi 6" id="wifi6Toggle" type="checkbox" checked/><span class="track"></span></label></div><div class="controlgrid"><button class="btn primary" id="wifiRadioApply" style="grid-column:1/-1">Apply 5GHz / Wi-Fi 6 Settings</button></div></section>
-<div class="softNote">ESP32-C5 supports 2.4GHz + 5GHz + Wi-Fi 6; ESP32-C6 supports 2.4GHz Wi-Fi 6.</div>
+<div class="detailSectionLabel">5GHZ, WI-FI 6 &amp; ACCESS ADDRESS</div>
+<section class="card"><div class="detailRow"><div><div class="detailLeft">Co-processor / Active Band</div><div class="detailSub" id="wifiRadioNote">Detecting ESP-Hosted capabilities…</div></div><span class="detailValue" id="wifiRadioBandState">—</span></div><div class="labControlRow"><div><div class="labControlTitle">Band Mode (5GHz on C5)</div><div class="labControlSub">Use Auto Dual-Band for repeater mode to scan both 2.4GHz and 5GHz routers.</div></div><select aria-label="Band Mode" class="selectArrow labSelect" id="wifiBandMode"><option value="auto">Auto (2.4G + 5G)</option><option value="5g">5 GHz Only</option><option value="2g">2.4 GHz Only</option></select></div><div class="labControlRow"><div><div class="labControlTitle">AP Channel</div><div class="labControlSub">Defaults to Ch36 on 5GHz, Ch1 on 2.4GHz.</div></div><select aria-label="AP Channel" class="selectArrow labSelect" id="wifiApChannel"><option value="0">Auto</option><option value="36">5GHz · Ch36</option><option value="149">5GHz · Ch149</option><option value="1">2.4GHz · Ch1</option><option value="6">2.4GHz · Ch6</option><option value="11">2.4GHz · Ch11</option></select></div><div class="labControlRow"><div><div class="labControlTitle">Wi-Fi 6 (802.11ax)</div><div class="labControlSub">Enable 802.11ax protocol; disable only for legacy client compatibility.</div></div><label class="toggle"><input aria-label="Wi-Fi 6" id="wifi6Toggle" type="checkbox" checked/><span class="track"></span></label></div><div class="labControlRow"><div><div class="labControlTitle">Dashboard Access Address</div><div class="labControlSub">Default 192.168.4.1; choose 100.100.1.1 (pseudo-public IP) if a device cannot reach 192.168.4.1.</div></div><select aria-label="Dashboard Access Address" class="selectArrow labSelect" id="wifiApIpMode"><option value="0">192.168.4.1 (Default)</option><option value="1">100.100.1.1 (Pseudo-Public)</option></select></div><div class="controlgrid"><button class="btn primary" id="wifiRadioApply" style="grid-column:1/-1">Apply Radio &amp; Address Settings</button></div></section>
+<div class="softNote">ESP32-C5 supports 2.4GHz + 5GHz + Wi-Fi 6; ESP32-C6 supports 2.4GHz Wi-Fi 6. Switching between 192.168.4.1 and 100.100.1.1 restarts only the AP and moves the dashboard URL to the new address.</div>
 <div class="detailSectionLabel">BLUETOOTH DATA</div>
 <section class="card"><div class="detailRow clickable destructiveRow" id="s3ResetAll"><div><div class="detailLeft">Reset Bluetooth Data</div><div class="detailSub">Remove all S3XY devices, action mappings, BLE bonds and cached discovery data, then restart P4-CAN.</div></div><span class="chev">›</span></div></section>
 <div class="softNote">Bluetooth Master and Global Auto Connect settings are preserved. Bluetooth must be ON to fully remove the controller's BLE bond database.</div>
@@ -1341,7 +1341,7 @@ function renderLighting(s){
   $('lightingTemplates').textContent=s?((s.highBeamTemplateReady?'0x249 ✓':'0x249 —')+' / '+(s.rearFogTemplateReady?'0x273 ✓':'0x273 —')):'—';
   $('lightingTxCounts').textContent=s?(s.txOk+' / '+s.txFail):'—';
 }
-async function fetchLighting(){const g=lightingGeneration;try{const s=await jget('/api/lighting/stats');if(lightingBusy||g!==lightingGeneration)return;lightingSaved=s;renderLighting(s);$('lightingStatus').textContent=!s.bodyTxSupported?'BODY bus is listen-only on this profile; lighting TX disabled':s.hornActive?'Horn high-beam flash active':s.strobeActive?'High-beam strobe active':s.rearFogBurstActive?'Rear fog 20x pilot burst active':s.running?'AP forced high beam active':Number(s.pilotMode)===2?'Rear fog pilot pulse active':Number(s.pilotMode)===3?'Rear fog steady pilot active':s.hornFlash?'Horn-to-high-beam flash armed':s.reverseRearFog?'Reverse gear rear fog assist enabled':!s.stalkSupported?'High-beam features require a stalk profile.':s.apForcedHighBeam?'Permission enabled · push the stalk inside AP to start':'Ready';}catch(e){if(lightingBusy||g!==lightingGeneration)return;lightingSaved=null;renderLighting(null);$('lightingStatus').textContent='Controller unavailable';}}
+async function fetchLighting(){const g=lightingGeneration;try{const s=await jget('/api/lighting/stats');if(lightingBusy||g!==lightingGeneration)return;lightingSaved=s;renderLighting(s);$('lightingStatus').textContent=!s.bodyTxSupported?'BODY bus is listen-only on this profile; lighting TX disabled':s.hornActive?'Horn high-beam flash active':s.strobeActive?'High-beam strobe active':s.rearFogBurstActive?'Rear fog 20x pilot burst active':s.running?'AP forced high beam active':Number(s.pilotMode)===2?'Rear fog pilot pulse active':Number(s.pilotMode)===3?'Rear fog steady pilot active':(Number(s.pilotMode)!==0||s.reverseRearFog)&&!s.rearFogTemplateReady?'Enabled · waiting for BODY 0x273 frame…':s.hornFlash?'Horn-to-high-beam flash armed':s.reverseRearFog?'Reverse gear rear fog assist enabled':!s.stalkSupported?'High-beam features require a stalk profile.':s.apForcedHighBeam?'Permission enabled · push the stalk inside AP to start':'Ready';}catch(e){if(lightingBusy||g!==lightingGeneration)return;lightingSaved=null;renderLighting(null);$('lightingStatus').textContent='Controller unavailable';}}
 async function updateLighting(key,forcedVal){if(lightingBusy||!lightingSaved)return;const value=forcedVal!==undefined?forcedVal:key==='apForcedHighBeam'?($('lightingAp').checked?'1':'0'):key==='strobeGesture'?($('lightingStrobeGesture').checked?'1':'0'):key==='strobeActive'?($('lightingStrobeActive').checked?'1':'0'):key==='hornFlash'?($('lightingHornFlash').checked?'1':'0'):key==='reverseRearFog'?($('lightingRevFog').checked?'1':'0'):key==='pilotMode'?$('lightingPilot').value:$('lightingBrake').value;lightingBusy=true;lightingGeneration++;renderLighting(lightingSaved);try{lightingSaved=await featurePostJson('/api/lighting/update?'+new URLSearchParams({[key]:value}));renderLighting(lightingSaved);$('lightingStatus').textContent='Saved';}catch(e){try{lightingSaved=await jget('/api/lighting/stats')}catch(x){lightingSaved=null}$('lightingStatus').textContent='Update failed';}finally{lightingBusy=false;lightingGeneration++;renderLighting(lightingSaved);}}
 $('lightingAp').onchange=()=>updateLighting('apForcedHighBeam');$('lightingStrobeGesture').onchange=()=>updateLighting('strobeGesture');$('lightingStrobeActive').onchange=()=>updateLighting('strobeActive');$('lightingHornFlash').onchange=()=>updateLighting('hornFlash');$('lightingBrake').onchange=()=>updateLighting('dynamicBrakeMode');$('lightingPilot').onchange=()=>updateLighting('pilotMode');$('lightingRevFog').onchange=()=>updateLighting('reverseRearFog');$('lightingFogBurstBtn').onclick=()=>updateLighting('rearFogBurst','1');
 let serviceSettingsSaved=null,serviceSettingsBusy=false,serviceSettingsGeneration=0;
@@ -1360,17 +1360,17 @@ async function fetchFsdSettings(){const generation=fsdSettingsGeneration;try{con
 async function updateFsdSettings(){if(fsdSettingsBusy||!fsdSettingsSaved)return;const values=$('fsdField1').checked?2:0;const enabled=$('fsdMaster').checked,suspendAp=$('fsdSuspendAp').checked;fsdSettingsBusy=true;fsdSettingsGeneration++;renderFsdSettings(fsdSettingsSaved);try{fsdSettingsSaved=await featurePostJson('/api/fsd/update?enabled='+(enabled?1:0)+'&values='+values+'&suspendDuringAp='+(suspendAp?1:0));$('fsdSettingsStatus').textContent='Saved';}catch(e){fsdSettingsSaved=null;$('fsdSettingsStatus').textContent='Failed or unconfirmed';}finally{fsdSettingsBusy=false;fsdSettingsGeneration++;renderFsdSettings(fsdSettingsSaved);}}
 ['fsdMaster','fsdSuspendAp','fsdField1'].forEach(id=>$(id).onchange=updateFsdSettings);
 async function jget(url){const r=await dashboardFetch(url,{cache:'no-store'});if(!r.ok)throw Error(r.status);ok();return r.json()}async function post(url){const r=await dashboardFetch(url,{method:'POST'});if(!r.ok&&!([202].includes(r.status)))throw Error(r.status);ok();return r}async function featurePostJson(url){const r=await dashboardFetch(url,{method:'POST'});let body=null;try{body=await r.json()}catch(e){}if(!r.ok)throw new Error(body?.error||('HTTP '+r.status));ok();return body||{}}
-let reconnectWatchSeq=0,wifiDirty=false,wifiRadioDirty=false,blinkTimingDirty=false,blinkTimingSaving=false;const otaJustUpdated=new URLSearchParams(location.search).get('ota')==='1';
-function showReconnectScreen(title,sub,phase='rebooting'){const t=$('profileRebootTitle'),m=$('profileRebootSub'),w=$('profileRebootScreen');if(t)t.textContent=title||'Reconnecting to P4-CAN';if(m)m.textContent=sub||'Waiting for the dashboard access point…';if(w)w.classList.add('show');otaUiPhase=phase;setConn(true)}
+let reconnectWatchSeq=0,wifiDirty=false,wifiRadioDirty=false,wifiSavedApIpMode='0',blinkTimingDirty=false,blinkTimingSaving=false;const otaJustUpdated=new URLSearchParams(location.search).get('ota')==='1';
+function showReconnectScreen(title,sub,phase='rebooting',targetHref=''){const t=$('profileRebootTitle'),m=$('profileRebootSub'),w=$('profileRebootScreen');if(t)t.textContent=title||'Reconnecting to P4-CAN';if(m)m.textContent=sub||'Waiting for the dashboard access point…';if(w){const box=w.firstElementChild||w;let lnk=$('profileRebootTargetLink');if(targetHref){if(!lnk){lnk=document.createElement('a');lnk.id='profileRebootTargetLink';lnk.className='btn primary linkbtn';lnk.style.cssText='margin:14px auto 0;max-width:240px;display:inline-flex';box.appendChild(lnk)}lnk.href=targetHref;lnk.textContent='Open '+targetHref.replace(/\/\?.*$/,'');lnk.style.display='inline-flex'}else if(lnk){lnk.style.display='none'}w.classList.add('show')}otaUiPhase=phase;setConn(true)}
 function forceHomeTop(){showPage('home');window.scrollTo({top:0,behavior:'auto'});requestAnimationFrame(()=>window.scrollTo(0,0));setTimeout(()=>window.scrollTo(0,0),80)}
 async function reconnectProbe(){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),1100);try{const r=await dashboardFetch('/api/profile/status?probe='+Date.now(),{cache:'no-store',signal:ctl.signal});return r.ok}catch(e){return false}finally{clearTimeout(timer)}}
 async function waitForP4CanReconnect(opts={}){const seq=++reconnectWatchSeq,start=Date.now(),minWait=Number(opts.minWaitMs)||2200;showReconnectScreen(opts.title||'Reconnecting to P4-CAN',opts.sub||'If Wi-Fi Auto-Join is disabled, reconnect to the P4-CAN access point manually.\nThis page will resume automatically.',opts.phase||'rebooting');for(;;){if(seq!==reconnectWatchSeq)return;await new Promise(r=>setTimeout(r,900));const up=await reconnectProbe();if(!up){setConn(false);continue}if(Date.now()-start<minWait)continue;if('scrollRestoration' in history)history.scrollRestoration='manual';location.replace('/?resume='+Date.now()+(opts.otaSuccess?'&ota=1':''));return}}
 window.waitForP4CanReconnect=waitForP4CanReconnect;
 function syncWifiChannelOptions(bm,can5g){const chEl=$('wifiApChannel');if(!chEl)return;Array.from(chEl.options).forEach(o=>{const v=Number(o.value);if(v===0){o.disabled=false;return;}if(!can5g||bm==='2g')o.disabled=v>14;else if(bm==='5g')o.disabled=v<=14;else o.disabled=false;});if(chEl.selectedOptions[0]?.disabled)chEl.value='0';}
-async function fetchWifi(force=false){try{const w=await jget('/api/wifi/status');const bandTag=w.activeBand?(w.activeBand+(w.actualChannel?' · Ch'+w.actualChannel:'')):'';$('wirelessWifiState').textContent='ON · '+w.ssid+(bandTag?' ('+bandTag+')':'');$('wifiStatusSub').textContent=(w.ip||'192.168.4.1')+' · '+(w.hostedVariant||'C6')+(w.wifi6?' · Wi-Fi 6':'')+' · dashboard AP';$('wirelessDesc').textContent='Bluetooth, S3XY Auto Connect · Wi-Fi '+w.ssid+(w.activeBand?' ('+w.activeBand+')':'');if($('wifiRadioBandState'))$('wifiRadioBandState').textContent=(w.hostedVariant||'C6')+' · '+(w.activeBand||'2.4 GHz')+(w.actualChannel?' Ch'+w.actualChannel:'')+(w.wifi6?' · Wi-Fi 6':'');if($('wifiRadioNote'))$('wifiRadioNote').textContent=w.supports5g?('Mode: '+(w.bandModeActive||'2.4G+5G Auto')+' · 5GHz & Wi-Fi 6 (11ax) supported'):'ESP32-C6 supports 2.4GHz only (Wi-Fi 6 active)';if($('wifiPasswordHint'))$('wifiPasswordHint').textContent=(w.passwordIsDefault?'DEFAULT PASSWORD · CHANGE RECOMMENDED. ':'')+'Wi-Fi settings are saved in NVS and preserved by Reset Feature Settings. Applying a change restarts only the access point, not CAN, BLE or the MCU.';if(force||!wifiDirty){$('wifiSsid').value=w.ssid||'';$('wifiPassword').value='';wifiDirty=false;$('wifiApply').textContent='Apply Wi-Fi Settings'}if((force||!wifiRadioDirty)&&$('wifiBandMode')){const bm=w.bandMode||(w.supports5g?'auto':'2g');$('wifiBandMode').value=bm;$('wifiBandMode').disabled=!w.supports5g;$('wifiApChannel').value=String(w.apChannel??0);syncWifiChannelOptions(bm,!!w.supports5g);$('wifi6Toggle').checked=w.wifi6!==false;wifiRadioDirty=false;$('wifiRadioApply').textContent='Apply 5GHz / Wi-Fi 6 Settings'}}catch(e){}}
+async function fetchWifi(force=false){try{const w=await jget('/api/wifi/status');const bandTag=w.activeBand?(w.activeBand+(w.actualChannel?' · Ch'+w.actualChannel:'')):'';wifiSavedApIpMode=String(w.apIpMode??0);$('wirelessWifiState').textContent='ON · '+w.ssid+(bandTag?' ('+bandTag+')':'');$('wifiStatusSub').textContent=(w.ip||w.apIpTarget||'192.168.4.1')+' · '+(w.hostedVariant||'C6')+(w.wifi6?' · Wi-Fi 6':'')+' · dashboard AP';$('wirelessDesc').textContent='Bluetooth, S3XY Auto Connect · Wi-Fi '+w.ssid+(w.activeBand?' ('+w.activeBand+')':'');if($('wifiRadioBandState'))$('wifiRadioBandState').textContent=(w.hostedVariant||'C6')+' · '+(w.activeBand||'2.4 GHz')+(w.actualChannel?' Ch'+w.actualChannel:'')+(w.wifi6?' · Wi-Fi 6':'');if($('wifiRadioNote'))$('wifiRadioNote').textContent=w.supports5g?('Mode: '+(w.bandModeActive||'2.4G+5G Auto')+' · IP '+(w.ip||w.apIpTarget||'192.168.4.1')):'ESP32-C6 supports 2.4GHz only · IP '+(w.ip||w.apIpTarget||'192.168.4.1');if($('wifiPasswordHint'))$('wifiPasswordHint').textContent=(w.passwordIsDefault?'DEFAULT PASSWORD · CHANGE RECOMMENDED. ':'')+'Wi-Fi settings are saved in NVS and preserved by Reset Feature Settings. Applying a change restarts only the access point, not CAN, BLE or the MCU.';if(force||!wifiDirty){$('wifiSsid').value=w.ssid||'';$('wifiPassword').value='';wifiDirty=false;$('wifiApply').textContent='Apply Wi-Fi Settings'}if((force||!wifiRadioDirty)&&$('wifiBandMode')){const bm=w.bandMode||(w.supports5g?'auto':'2g');$('wifiBandMode').value=bm;$('wifiBandMode').disabled=!w.supports5g;$('wifiApChannel').value=String(w.apChannel??0);syncWifiChannelOptions(bm,!!w.supports5g);$('wifi6Toggle').checked=w.wifi6!==false;if($('wifiApIpMode'))$('wifiApIpMode').value=wifiSavedApIpMode;wifiRadioDirty=false;$('wifiRadioApply').textContent='Apply Radio & Address Settings'}}catch(e){}}
 function utf8Bytes(v){return new TextEncoder().encode(v).length}
 $('wifiSsid').oninput=$('wifiPassword').oninput=()=>{wifiDirty=true;$('wifiApply').textContent='Apply Wi-Fi Settings · Unsaved'};
-if($('wifiBandMode')){$('wifiBandMode').onchange=()=>{wifiRadioDirty=true;syncWifiChannelOptions($('wifiBandMode').value, !$('wifiBandMode').disabled);$('wifiRadioApply').textContent='Apply 5GHz / Wi-Fi 6 Settings · Unsaved'};$('wifiApChannel').onchange=$('wifi6Toggle').onchange=()=>{wifiRadioDirty=true;$('wifiRadioApply').textContent='Apply 5GHz / Wi-Fi 6 Settings · Unsaved'};$('wifiRadioApply').onclick=async()=>{const bm=$('wifiBandMode').value,ch=$('wifiApChannel').value,ax=$('wifi6Toggle').checked?'1':'0';$('wifiRadioApply').disabled=true;try{await post('/api/wifi/radio?bandMode='+encodeURIComponent(bm)+'&apChannel='+encodeURIComponent(ch)+'&wifi6='+ax);wifiRadioDirty=false;$('wifiRadioApply').disabled=false;showReconnectScreen('Wi-Fi Radio Settings Updated','Restarting access point ('+bm.toUpperCase()+')…\nReconnect manually if your device does not auto-join.','reconnecting');waitForP4CanReconnect({title:'Wi-Fi Radio Settings Updated',sub:'Restarting access point… Reconnect to P4-CAN Wi-Fi to resume automatically.',minWaitMs:1800,phase:'reconnecting'})}catch(e){$('wifiRadioApply').disabled=false;$('wifiRadioApply').textContent='Apply Failed · Retry';}};}
+if($('wifiBandMode')){$('wifiBandMode').onchange=()=>{wifiRadioDirty=true;syncWifiChannelOptions($('wifiBandMode').value, !$('wifiBandMode').disabled);$('wifiRadioApply').textContent='Apply Radio & Address Settings · Unsaved'};$('wifiApChannel').onchange=$('wifi6Toggle').onchange=()=>{wifiRadioDirty=true;$('wifiRadioApply').textContent='Apply Radio & Address Settings · Unsaved'};if($('wifiApIpMode'))$('wifiApIpMode').onchange=()=>{wifiRadioDirty=true;$('wifiRadioApply').textContent='Apply Radio & Address Settings · Unsaved'};$('wifiRadioApply').onclick=async()=>{const bm=$('wifiBandMode').value,ch=$('wifiApChannel').value,ax=$('wifi6Toggle').checked?'1':'0',ipm=$('wifiApIpMode')?$('wifiApIpMode').value:wifiSavedApIpMode,targetIp=ipm==='1'?'100.100.1.1':'192.168.4.1',ipChanged=(ipm!==wifiSavedApIpMode)||( /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname)&&location.hostname!==targetIp );$('wifiRadioApply').disabled=true;try{await post('/api/wifi/radio?bandMode='+encodeURIComponent(bm)+'&apChannel='+encodeURIComponent(ch)+'&wifi6='+ax+'&apIpMode='+encodeURIComponent(ipm));wifiRadioDirty=false;wifiSavedApIpMode=ipm;$('wifiRadioApply').disabled=false;$('wifiRadioApply').textContent='Apply Radio & Address Settings';if(ipChanged){const nextUrl='http://'+targetIp+'/?resume='+Date.now();showReconnectScreen('Dashboard IP Switched to '+targetIp,'Restarting access point on '+targetIp+'…\nReconnect to P4-CAN Wi-Fi if needed, then open '+nextUrl.replace(/\/\?.*$/,''),'reconnecting',nextUrl);setTimeout(()=>{try{location.replace(nextUrl)}catch(e){}},3600);return}showReconnectScreen('Wi-Fi Radio Settings Updated','Restarting access point ('+bm.toUpperCase()+')…\nReconnect manually if your device does not auto-join.','reconnecting');waitForP4CanReconnect({title:'Wi-Fi Radio Settings Updated',sub:'Restarting access point… Reconnect to P4-CAN Wi-Fi to resume automatically.',minWaitMs:1800,phase:'reconnecting'})}catch(e){$('wifiRadioApply').disabled=false;$('wifiRadioApply').textContent='Apply Failed · Retry';}};}
 $('wifiPasswordToggle').onclick=()=>{const p=$('wifiPassword'),show=p.type==='password';p.type=show?'text':'password';$('wifiPasswordToggle').textContent=show?'Hide':'Show'};
 $('wifiApply').onclick=async()=>{const ssid=$('wifiSsid').value,password=$('wifiPassword').value,sb=utf8Bytes(ssid),pb=utf8Bytes(password);if(sb<1||sb>32)return ;if(pb!==0&&(pb<8||pb>63))return ;$('wifiApply').disabled=true;try{const r=await post('/api/wifi/apply?ssid='+encodeURIComponent(ssid)+'&password='+encodeURIComponent(password)),j=await r.json();wifiDirty=false;if(!j.reconnecting){$('wifiApply').disabled=false;$('wifiApply').textContent='Apply Wi-Fi Settings';;return fetchWifi(true)}const passLine=password?'Password: '+password:'Password unchanged';showReconnectScreen('Wi-Fi Access Point Changed','Connect to “'+ssid+'”\n'+passLine+'\n\nIf Auto-Join is disabled, reconnect manually. This page will resume automatically.','reconnecting');waitForP4CanReconnect({title:'Wi-Fi Access Point Changed',sub:'Connect to “'+ssid+'”\n'+passLine+'\n\nIf Auto-Join is disabled, reconnect manually. This page will resume automatically.',minWaitMs:1800,phase:'reconnecting'})}catch(e){$('wifiApply').disabled=false;}};
 function syncChecks(ids,v){ids.forEach(id=>{const e=$(id);if(e)e.checked=!!v})}
@@ -2891,6 +2891,17 @@ q('s3xyFeatureToggle').checked=s3xyEnabled;q('s3xyFeatureDesc').textContent="Use
     scanOpen: '开放', scanLock: '加密',
     upOff: '未开启', upJoin: '连接中…', upOn: '已连上（互联网转发就绪）', upNoNapt: '已连上（转发未开）',
     upClients: '客户端', upRssi: '信号', upGw: '网关 / DNS',
+    fltHead: '中继域名过滤', fltSub: 'DNS 层黑白名单 · 只在中继在线时生效',
+    fltStatusLbl: '过滤状态', fltModeLbl: '模式',
+    fltModes: ['关闭', '黑名单', '白名单'],
+    fltSpoofTitle: '联网检测返回成功', fltSpoofSub: '检测域名解析到 P4，按平台回 200 / 204',
+    fltListBl: '黑名单 · 每行一个域名（含子域）', fltListWl: '白名单 · 每行一个域名（含子域）',
+    fltListOff: '黑名单规则 · 每行一个域名（含子域）',
+    fltPh: 'example.com\ntelemetry.vendor.com',
+    fltSave: '保存规则', fltUnsaved: '未保存更改 · 点击保存规则写入闪存',
+    fltSaved: '已保存到 NVS（重启不丢失）', fltNote: '规则保存在 NVS · 重启不丢失',
+    fltActive: '生效', fltArmed: '已就绪（待中继在线）', fltOffState: '已关闭',
+    fltSpoofOnly: '仅伪装联网检测', fltRuleWord: '条规则', fltBlockedWord: '已拦截', fltProbeWord: '检测响应', fltTimes: '次',
     capHead: '抓包', capNote: '只读，不发帧',
     capDesc: '环缓冲记录 CAN 帧，可暂停、分页查看、整段导出 CSV。',
     bus: '总线', idf: 'ID 过滤（hex，可空）', start: '开始', pause: '停止',
@@ -2905,6 +2916,17 @@ q('s3xyFeatureToggle').checked=s3xyEnabled;q('s3xyFeatureDesc').textContent="Use
     scanOpen: 'Open', scanLock: 'Secured',
     upOff: 'OFF', upJoin: 'Joining\u2026', upOn: 'Connected (NAPT active)', upNoNapt: 'Connected (no NAPT)',
     upClients: 'Clients', upRssi: 'RSSI', upGw: 'Gateway / DNS',
+    fltHead: 'Repeater Domain Filter', fltSub: 'DNS blacklist / whitelist \u00B7 active only while repeater is online',
+    fltStatusLbl: 'Filter Status', fltModeLbl: 'Mode',
+    fltModes: ['Off', 'Blacklist', 'Whitelist'],
+    fltSpoofTitle: 'Spoof Connectivity Probes', fltSpoofSub: 'Resolve probe domains to P4 and reply 200 / 204',
+    fltListBl: 'Blacklist \u00B7 one domain per line (includes subdomains)', fltListWl: 'Whitelist \u00B7 one domain per line (includes subdomains)',
+    fltListOff: 'Blacklist rules \u00B7 one domain per line (includes subdomains)',
+    fltPh: 'example.com\ntelemetry.vendor.com',
+    fltSave: 'Save Filter Rules', fltUnsaved: 'Unsaved changes \u00B7 click Save Filter Rules to persist',
+    fltSaved: 'Saved to NVS (persists across reboot)', fltNote: 'Rules persist in NVS across reboots',
+    fltActive: 'active', fltArmed: 'armed (wait uplink)', fltOffState: 'Disabled',
+    fltSpoofOnly: 'Probe spoof only', fltRuleWord: 'rules', fltBlockedWord: 'blocked', fltProbeWord: 'probe replies', fltTimes: '',
     capHead: 'Packet Capture', capNote: 'read-only',
     capDesc: 'Ring-buffer CAN capture with pause, live list and a full CSV export.',
     bus: 'Bus', idf: 'ID filter (hex, optional)', start: 'Start', pause: 'Stop',
@@ -2943,6 +2965,33 @@ q('s3xyFeatureToggle').checked=s3xyEnabled;q('s3xyFeatureDesc').textContent="Use
     + '<div class="r"><span class="rk2">' + T.upGw + '</span><span id="p4UpGw">\u2014</span></div>'
     + '<div class="r"><span class="rk2">AP DNS / NAPT</span><span id="p4UpDns">\u2014</span></div>'
     + '</div></section>'
+    /* ── 中继域名过滤 ── */
+    + '<section class="card" id="p4UpFilterCard" style="margin-top:10px">'
+    + '<div style="padding:15px 15px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">'
+    + '<div style="min-width:0"><div style="font-size:17px;font-weight:700;letter-spacing:-.02em">' + T.fltHead + '</div>'
+    + '<div class="listdesc" style="margin-top:4px;font-size:10px;line-height:1.4">' + T.fltSub + '</div></div>'
+    + '<span id="p4FltBadge" style="flex:0 0 auto;padding:4px 11px;border-radius:999px;font-size:10px;font-weight:700;border:1px solid var(--line);background:var(--bg);color:var(--muted)">' + T.fltModes[0] + '</span></div>'
+    + '<div style="padding:11px 15px;border-top:1px solid var(--line)">'
+    + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">' + T.fltStatusLbl + '</div>'
+    + '<div id="p4FltState" style="font-size:12px;font-weight:580;line-height:1.45">\u2014</div></div>'
+    + '<div style="padding:11px 15px 6px;border-top:1px solid var(--line)">'
+    + '<div style="font-size:10px;color:var(--muted);margin-bottom:8px">' + T.fltModeLbl + '</div>'
+    + '<div id="p4FltModes" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:14px;background:rgba(120,120,128,.12);border:1px solid var(--line)">'
+    + '<button type="button" data-flt-mode="0" style="border:0;border-radius:10px;padding:8px 6px;font-size:12px;font-weight:620;background:transparent">' + T.fltModes[0] + '</button>'
+    + '<button type="button" data-flt-mode="1" style="border:0;border-radius:10px;font-size:12px;font-weight:620;background:transparent">' + T.fltModes[1] + '</button>'
+    + '<button type="button" data-flt-mode="2" style="border:0;border-radius:10px;font-size:12px;font-weight:620;background:transparent">' + T.fltModes[2] + '</button>'
+    + '</div></div>'
+    + '<div style="min-height:60px;padding:12px 15px;margin-top:8px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px">'
+    + '<div style="min-width:0"><div class="listkey">' + T.fltSpoofTitle + '</div>'
+    + '<div class="listdesc" style="margin-top:3px;font-size:10px;line-height:1.38">' + T.fltSpoofSub + '</div></div>'
+    + '<label class="toggle"><input id="p4FltSpoof" type="checkbox" checked/><span class="track"></span></label></div>'
+    + '<div style="padding:11px 15px 6px;border-top:1px solid var(--line)">'
+    + '<div id="p4FltListLabel" style="font-size:10px;color:var(--muted);margin-bottom:8px">' + T.fltListOff + '</div>'
+    + '<textarea id="p4FltDomains" rows="4" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="' + T.fltPh + '" style="width:100%;box-sizing:border-box;min-height:92px;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:var(--bg);color:var(--ink);font:inherit;font-size:12px;line-height:1.45;resize:vertical"></textarea></div>'
+    + '<div style="padding:8px 15px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">'
+    + '<span id="p4FltMsg" style="font-size:10px;color:var(--muted);min-width:0">' + T.fltNote + '</span>'
+    + '<button class="btn primary" id="p4FltSave" type="button" style="flex:0 0 auto;padding:10px 16px">' + T.fltSave + '</button></div>'
+    + '</section>'
     /* ── 抓包 ── */
     + '<div class="sectionhead"><div class="sectiontitle">' + T.capHead + '</div>'
     + '<div class="sectionnote">' + T.capNote + '</div></div>'
@@ -2987,7 +3036,7 @@ q('s3xyFeatureToggle').checked=s3xyEnabled;q('s3xyFeatureDesc').textContent="Use
     if (!u.enabled) state = T.upOff;
     else if (!u.connected) state = T.upJoin;
     else state = u.napt ? T.upOn : T.upNoNapt;
-    if (u.error) state += ' \u00B7 ' + (u.error === 'subnet-conflict' ? 'Uplink uses 192.168.4.x (conflicts with P4 AP subnet)' : u.error);
+    if (u.error) state += ' \u00B7 ' + (u.error === 'subnet-conflict' ? (ZH ? '热点网段与 P4 AP 冲突' : 'Uplink uses same subnet as P4 AP') : u.error);
     q('p4UpState').textContent = state;
     q('p4UpIp').textContent = u.connected ? (u.ip || '\u2014') : '\u2014';
     q('p4UpSta').textContent = String(u.stations == null ? 0 : u.stations);
@@ -2995,6 +3044,137 @@ q('s3xyFeatureToggle').checked=s3xyEnabled;q('s3xyFeatureDesc').textContent="Use
     q('p4UpGw').textContent = u.connected ? ((u.gw || '\u2014') + ' / ' + (u.dns || '\u2014')) : '\u2014';
     if (q('p4UpDns')) q('p4UpDns').textContent = (u.apDns || '223.5.5.5') + ' \u00B7 ' + (u.napt ? 'NAPT \u2713' : 'Standby');
   }
+
+  /* ── 域名过滤 ── */
+  var fltState = { mode: 0, probeSpoof: true, blacklist: '', whitelist: '', ruleCount: 0, blockedCount: 0, probeCount: 0, uplinkConnected: false, loaded: false };
+  var fltDirty = false;
+  function fltActiveListKey(mode) { return Number(mode) === 2 ? 'whitelist' : 'blacklist'; }
+  function fltSyncDraftBox() {
+    var box = q('p4FltDomains');
+    if (!box) return;
+    fltState[fltActiveListKey(fltState.mode)] = box.value;
+  }
+  function fltUpdateModeButtons() {
+    var btns = document.querySelectorAll('#p4FltModes button[data-flt-mode]');
+    btns.forEach(function(b){
+      var m = Number(b.getAttribute('data-flt-mode'));
+      var on = (m === fltState.mode);
+      b.style.background = on ? 'var(--card)' : 'transparent';
+      b.style.color = on ? 'var(--ink)' : 'var(--muted)';
+      b.style.fontWeight = on ? '700' : '560';
+      b.style.boxShadow = on ? '0 2px 6px rgba(0,0,0,.12)' : 'none';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    var badge = q('p4FltBadge');
+    if (badge) {
+      badge.textContent = T.fltModes[fltState.mode] || T.fltModes[0];
+      if (fltState.mode === 1) {
+        badge.style.background = 'rgba(39,131,83,.15)';
+        badge.style.borderColor = 'rgba(39,131,83,.45)';
+        badge.style.color = 'var(--green)';
+      } else if (fltState.mode === 2) {
+        badge.style.background = 'rgba(52,120,246,.15)';
+        badge.style.borderColor = 'rgba(52,120,246,.45)';
+        badge.style.color = 'var(--blue)';
+      } else {
+        badge.style.background = 'var(--bg)';
+        badge.style.borderColor = 'var(--line)';
+        badge.style.color = 'var(--muted)';
+      }
+    }
+    var lbl = q('p4FltListLabel');
+    if (lbl) lbl.textContent = fltState.mode === 2 ? T.fltListWl : (fltState.mode === 1 ? T.fltListBl : T.fltListOff);
+  }
+  function fltRenderStatus(live) {
+    var m = live.mode, sp = live.probeSpoof, up = !!live.uplinkConnected;
+    var r = live.ruleCount || 0, blk = live.blockedCount || 0, prb = live.probeCount || 0;
+    var s = '';
+    if (m === 0) {
+      s = sp ? (T.fltSpoofOnly + (up ? (' (' + T.fltActive + ')') : '') + ' \u00B7 ' + T.fltProbeWord + ' ' + prb + (T.fltTimes ? (' ' + T.fltTimes) : '')) : T.fltOffState;
+    } else {
+      var name = T.fltModes[m];
+      var statusWord = up ? T.fltActive : T.fltArmed;
+      s = name + (ZH ? statusWord : (' ' + statusWord)) + ' \u00B7 ' + r + ' ' + T.fltRuleWord + ' \u00B7 ' + T.fltBlockedWord + ' ' + blk + (T.fltTimes ? (' ' + T.fltTimes) : '') + ' \u00B7 ' + T.fltProbeWord + ' ' + prb + (T.fltTimes ? (' ' + T.fltTimes) : '');
+    }
+    if (q('p4FltState')) q('p4FltState').textContent = s;
+  }
+  function fltRender(f) {
+    if (!f || !f.ok) return;
+    fltState.ruleCount = f.ruleCount || 0;
+    fltState.blockedCount = f.blockedCount || 0;
+    fltState.probeCount = f.probeCount || 0;
+    fltState.uplinkConnected = !!f.uplinkConnected;
+    fltRenderStatus(f);
+    if (fltDirty) return;
+    fltState.mode = Number(f.mode || 0);
+    fltState.probeSpoof = (f.probeSpoof !== false);
+    fltState.blacklist = f.blacklist || '';
+    fltState.whitelist = f.whitelist || '';
+    fltState.loaded = true;
+    if (q('p4FltSpoof')) q('p4FltSpoof').checked = fltState.probeSpoof;
+    if (q('p4FltDomains') && document.activeElement !== q('p4FltDomains')) {
+      q('p4FltDomains').value = fltState[fltActiveListKey(fltState.mode)];
+    }
+    fltUpdateModeButtons();
+  }
+  function fltPoll() {
+    fetch('/api/wifi/filter', {cache:'no-store'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ fltRender(d); })
+      .catch(function(){});
+  }
+  document.querySelectorAll('#p4FltModes button[data-flt-mode]').forEach(function(btn){
+    btn.onclick = function(){
+      fltSyncDraftBox();
+      fltState.mode = Number(btn.getAttribute('data-flt-mode')) || 0;
+      fltDirty = true;
+      if (q('p4FltDomains')) q('p4FltDomains').value = fltState[fltActiveListKey(fltState.mode)];
+      fltUpdateModeButtons();
+      if (q('p4FltMsg')) q('p4FltMsg').textContent = T.fltUnsaved;
+    };
+  });
+  if (q('p4FltSpoof')) q('p4FltSpoof').onchange = function(){
+    fltState.probeSpoof = !!q('p4FltSpoof').checked;
+    fltDirty = true;
+    if (q('p4FltMsg')) q('p4FltMsg').textContent = T.fltUnsaved;
+  };
+  if (q('p4FltDomains')) q('p4FltDomains').oninput = function(){
+    fltSyncDraftBox();
+    fltDirty = true;
+    if (q('p4FltMsg')) q('p4FltMsg').textContent = T.fltUnsaved;
+  };
+  if (q('p4FltSave')) q('p4FltSave').onclick = function(){
+    fltSyncDraftBox();
+    var btn = q('p4FltSave');
+    btn.disabled = true;
+    var body = new URLSearchParams({
+      mode: String(fltState.mode),
+      probeSpoof: fltState.probeSpoof ? '1' : '0',
+      blacklist: fltState.blacklist || '',
+      whitelist: fltState.whitelist || ''
+    });
+    fetch('/api/wifi/filter', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: body.toString()
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        btn.disabled = false;
+        if (d && d.ok) {
+          fltDirty = false;
+          fltRender(d);
+          if (q('p4FltMsg')) q('p4FltMsg').textContent = T.fltSaved;
+          upPoll();
+        } else {
+          if (q('p4FltMsg')) q('p4FltMsg').textContent = (d && d.error) || T.saveFail;
+        }
+      })
+      .catch(function(){
+        btn.disabled = false;
+        if (q('p4FltMsg')) q('p4FltMsg').textContent = T.saveFail;
+      });
+  };
   function upRenderScan(nets){
     var box = q('p4UpScanList');
     box.replaceChildren();
@@ -3149,8 +3329,9 @@ q('s3xyFeatureToggle').checked=s3xyEnabled;q('s3xyFeatureDesc').textContent="Use
   q('p4CapExport').onclick = function(){ window.open('/api/capture/export.csv', '_blank'); };
 
   upPoll();
+  fltPoll();
   capPoll();
-  setInterval(upPoll, 3000);
+  setInterval(function(){ upPoll(); fltPoll(); }, 3000);
 })();
 </script>
 </body></html>

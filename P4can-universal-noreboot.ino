@@ -80,7 +80,7 @@
 #include "json_writer_arduino.h"
 
 // 上游 v3.35.3 基线 + P4can-No-Reboot 免重启 + 灯光/领航模式 + Wi-Fi 中继增强
-#define FW_VERSION "v3.35.3-norestart2-plus"
+#define FW_VERSION "3.35.3.2"
 
 #include "continuous_ap_fsm_pure.h"
 #include "p4can_core_state.h"
@@ -99,7 +99,8 @@
 #define P4_TLSSC_NR_PRIORITY_YIELD(nowMs) tlssNrPriorityYieldDue(nowMs)
 #define P4_LIGHTING_BODY_TX_SUPPORTED() (!activeProfileIsYl())
 #include "lighting/lighting_runtime.h"
-// No-Reboot 侧独有、上游没有的两个模块：Wi-Fi 中继（AP+STA+NAPT）与独立抓包
+// No-Reboot 侧独有、上游没有的两个模块：Wi-Fi 中继（AP+STA+NAPT+DNS过滤）与独立抓包
+#include "p4_dns_filter.h"
 #include "p4_uplink.h"
 #include "feifan_capture.h"
 #include "web_api.h"
