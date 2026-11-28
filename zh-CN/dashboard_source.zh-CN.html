@@ -2479,13 +2479,9 @@ function markViewportUserInput(){viewportLastUserInputMs=Date.now();viewportResi
 for(const ev of ['touchstart','pointerdown','wheel'])window.addEventListener(ev,markViewportUserInput,{passive:true});
 window.addEventListener('scroll',rememberViewportScroll,{passive:true});
 document.querySelectorAll('.panel').forEach(panel=>panel.addEventListener('scroll',rememberViewportScroll,{passive:true}));
-if(window.visualViewport)visualViewport.addEventListener('resize',()=>{
-  if(Date.now()-viewportLastUserInputMs<700){rememberViewportScroll();return}
-  viewportResizeActive=true;clearTimeout(viewportRestoreTimer);
-  viewportRestoreTimer=setTimeout(()=>{restoreViewportScroll();viewportResizeActive=false},120);
-});
+if(window.visualViewport)visualViewport.addEventListener('resize',rememberViewportScroll);
 window.addEventListener('blur',rememberViewportScroll);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){invalidateDiagSelection();rememberViewportScroll()}else{setTimeout(restoreViewportScroll,80);forcePoll()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){invalidateDiagSelection();rememberViewportScroll()}else{forcePoll()}});
 function renderHeartbeatSnapshot(){const s=lastSys;if(!s)return;if(!$('sysHeartbeatCause'))return;$('sysHeartbeatCause').textContent=s.canTaskHeartbeatLastCauseName||'NONE';$('sysHeartbeatAge').textContent=Number(s.canTaskHeartbeatLastCause)>0?(fmtMs(s.canTaskHeartbeatLastAgeAms)+' / '+fmtMs(s.canTaskHeartbeatLastAgeBms)):'—';$('sysHeartbeatCounts').textContent=(s.canTaskHeartbeatTimeoutCountA||0)+' / '+(s.canTaskHeartbeatTimeoutCountB||0)+' / '+(s.canTaskHeartbeatTimeoutCountBoth||0)}
 setInterval(()=>{if(universalBootReady){pollTick(false);renderHeartbeatSnapshot()}},250);
 </script>
