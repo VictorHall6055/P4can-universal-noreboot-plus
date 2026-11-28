@@ -748,6 +748,9 @@ static void canTaskTwai(void* arg) {
       // Only standard 11-bit DATA frames may reach Tesla decoders or TX paths.
       if (!canUsbPassive() && !f.extd && !f.rtr && f.data_length_code <= 8 && f.identifier <= 0x7ff) {
         canTxMarkFresh(CAN_TX_FRESH_VH);
+        if (previousCanBFrameMs == 0u || (uint32_t)(frameNow - previousCanBFrameMs) >= 4500u || recoverySleeping) {
+          tlsscNrNotifyWake(frameNow);
+        }
         bootCaptureObserveVhFrame(f.identifier, f.data_length_code);
         researchCaptureObserveVh((uint16_t)f.identifier, f.data_length_code, f.data);
         driverMonitorCaptureObserve(DRIVER_MONITOR_BUS_B, (uint16_t)f.identifier, f.data_length_code, f.data);

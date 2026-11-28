@@ -522,8 +522,8 @@ static constexpr uint32_t LIGHTING_AP1_PUSH_SPACING_MS = 10u;
 // reported lit. The retry is bounded on purpose: an unbounded loop on the stalk
 // channel reads to the body controller as a jammed lever.
 static constexpr uint32_t LIGHTING_AP1_TOPUP_RETRY_MS = 300u;
-static constexpr uint8_t LIGHTING_AP1_TOPUP_MAX_ATTEMPTS = 12u;
-static constexpr uint32_t LIGHTING_AP1_SPENT_COOLDOWN_MS = 2500u;
+static constexpr uint8_t LIGHTING_AP1_TOPUP_MAX_ATTEMPTS = 20u;
+static constexpr uint32_t LIGHTING_AP1_SPENT_COOLDOWN_MS = 1200u;
 // A car push still on the wire owns the channel. The window is measured from the
 // last PUSH frame seen (not from the rising edge) because the car's own train
 // keeps delivering frames for ~150 ms after the edge.
@@ -594,8 +594,7 @@ static inline bool lightingAp1TopupDuePure(LightingAp1PushPure &s, bool demand,
   if (reportFresh && reportLit) {
     if (s.awaitingLit) {
       s.awaitingLit = false;
-      if (s.lastTrainMs != 0u &&
-          (uint32_t)(nowMs - s.lastTrainMs) <= LIGHTING_AP1_TOPUP_LIT_WINDOW_MS &&
+      if (lightingAgeOkPure(nowMs, s.lastTrainMs, LIGHTING_AP1_TOPUP_LIT_WINDOW_MS) &&
           ev != nullptr) {
         ev->lit = true;
       }
@@ -612,7 +611,7 @@ static inline bool lightingAp1TopupDuePure(LightingAp1PushPure &s, bool demand,
   if (s.left != 0u) return true;
   if (s.spent) {
     if (s.lastTrainMs == 0u ||
-        (uint32_t)(nowMs - s.lastTrainMs) < LIGHTING_AP1_SPENT_COOLDOWN_MS) {
+        lightingAgeOkPure(nowMs, s.lastTrainMs, LIGHTING_AP1_SPENT_COOLDOWN_MS - 1u)) {
       return false;
     }
     // 冷却期结束后允许在 AP 强制远光仍处于激活状态时重新补发，防止自动远光回落后再也点不亮。
@@ -625,8 +624,7 @@ static inline bool lightingAp1TopupDuePure(LightingAp1PushPure &s, bool demand,
       if (ev != nullptr) ev->suppressed = true;
       return false;
     }
-    if (lastCarPushMs != 0u &&
-        (uint32_t)(nowMs - lastCarPushMs) < LIGHTING_AP1_CAR_PUSH_SETTLE_MS) {
+    if (lightingAgeOkPure(nowMs, lastCarPushMs, LIGHTING_AP1_CAR_PUSH_SETTLE_MS - 1u)) {
       if (ev != nullptr) ev->suppressed = true;
       return false;
     }
@@ -638,7 +636,7 @@ static inline bool lightingAp1TopupDuePure(LightingAp1PushPure &s, bool demand,
     }
     // Later attempts only fire on evidence that the lamp is actually dark.
     if (!reportFresh) return false;
-    if ((uint32_t)(nowMs - s.lastTrainMs) < LIGHTING_AP1_TOPUP_RETRY_MS) return false;
+    if (lightingAgeOkPure(nowMs, s.lastTrainMs, LIGHTING_AP1_TOPUP_RETRY_MS - 1u)) return false;
     if (s.attempts >= LIGHTING_AP1_TOPUP_MAX_ATTEMPTS) {
       s.spent = true;
       return false;
@@ -1116,7 +1114,7 @@ static inline uint8_t lightingStalkDirPure(const uint8_t data[8]) {
 //     RX frames carrying the car's own counter, so the byte-level echo test in
 //     lightingIsSelfEcho249 cannot reliably recognise them; they have to be
 //     excluded by timing instead.
-static constexpr uint32_t LIGHTING_AP_BEAM_PUSH_GUARD_MS = 500u;
+static constexpr uint32_t LIGHTING_AP_BEAM_PUSH_GUARD_MS = 900u;
 static constexpr uint32_t LIGHTING_AP1_TX_QUIET_MS = 700u;
 
 struct LightingAp1RunPure {
@@ -1142,8 +1140,7 @@ static inline bool lightingAp1RunStepPure(LightingAp1RunPure &s, bool authorized
   }
   if (!pushEdge) return s.running;
   if (!ownTxQuiet) return s.running;
-  if (s.lastEdgeMs != 0u &&
-      (uint32_t)(nowMs - s.lastEdgeMs) < LIGHTING_AP_BEAM_PUSH_GUARD_MS) {
+  if (lightingAgeOkPure(nowMs, s.lastEdgeMs, LIGHTING_AP_BEAM_PUSH_GUARD_MS - 1u)) {
     return s.running;
   }
   s.lastEdgeMs = nowMs != 0u ? nowMs : 1u;

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">特斯拉解锁</string>
+    <string name="connect_t2can_wifi">请在系统 Wi-Fi 设置中连接设备热点。</string>
+    <string name="connection_failed">无法连接到设备。\n请检查设备供电、连接模式或网络配置。</string>
+    <string name="connection_initial">请选择连接方式或连接到 P4-CAN / T2CAN 设备。\n就绪后将自动打开控制台。</string>
+    <string name="connection_label">设备连接</string>
+    <string name="connection_loading">已连接到设备。\n正在打开控制台…</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="dialog_ok">确定</string>
+    <string name="endpoint_version">支持 192.168.4.1 / 热点中继 / 100.100.1.1 · App 1.3.0</string>
+    <string name="file_picker_unavailable">无法打开系统文件选择器。</string>
+    <string name="file_transfer_busy">请等待文件传输完成后再返回。</string>
+    <string name="header_title">TESLA UNLOCK</string>
+    <string name="modal_open">请先操作当前打开的弹窗按钮。</string>
+    <string name="open_wifi_settings">打开 Wi-Fi 设置</string>
+    <string name="retry_connection">重试连接</string>
+    <string name="status_connecting">正在连接…</string>
+    <string name="status_disconnected">未连接</string>
+    <string name="use_dashboard_download">请使用控制台内的日志下载按钮保存该文件。</string>
+</resources>

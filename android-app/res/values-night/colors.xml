@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="connection_background">#1d1d21</color>
+    <color name="connection_card">#2f2f34</color>
+    <color name="connection_chip">#303035</color>
+    <color name="connection_muted">#a2a2aa</color>
+    <color name="connection_primary">#dedee3</color>
+    <color name="connection_primary_text">#1d1d21</color>
+    <color name="connection_secondary">#39393f</color>
+    <color name="connection_secondary_stroke">#515158</color>
+    <color name="connection_secondary_text">#d8d8dd</color>
+    <color name="connection_text">#d8d8dd</color>
+</resources>

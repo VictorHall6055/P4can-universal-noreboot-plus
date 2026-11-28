@@ -367,9 +367,50 @@ static void p4DnsProxyUpdateRuntime(bool uplinkReady, uint32_t upstreamDnsRaw) {
   __atomic_store_n(&p4DnsUplinkReady, uplinkReady, __ATOMIC_RELEASE);
 }
 
+static constexpr uint16_t P4_DISCOVER_UDP_PORT = 42100u;
+
+static void p4DnsHandleDiscoverUdp(WiFiUDP &udpDisc, bool &worked) {
+  uint8_t dbuf[64];
+  char jbuf[192];
+  for (int iter = 0; iter < 4; ++iter) {
+    const int pktLen = udpDisc.parsePacket();
+    if (pktLen <= 0) break;
+    worked = true;
+    const int got = udpDisc.read(dbuf, sizeof(dbuf));
+    const IPAddress clientIp = udpDisc.remoteIP();
+    const uint16_t clientPort = udpDisc.remotePort();
+    if (got < 14 || pktLen > 128 || clientPort == 0u ||
+        memcmp(dbuf, "P4CAN_DISCOVER", 14) != 0) {
+      continue;
+    }
+    const IPAddress staIp = WiFi.localIP();
+    const bool staUp = (WiFi.status() == WL_CONNECTED) && ((uint32_t)staIp != 0u);
+    char staStr[20] = "";
+    if (staUp) {
+      snprintf(staStr, sizeof(staStr), "%u.%u.%u.%u",
+               (unsigned)staIp[0], (unsigned)staIp[1], (unsigned)staIp[2], (unsigned)staIp[3]);
+    }
+#ifdef FW_VERSION
+    const char *fwStr = FW_VERSION;
+#else
+    const char *fwStr = "3.35.3.3";
+#endif
+    const int jLen = snprintf(
+        jbuf, sizeof(jbuf),
+        "{\"p4can\":true,\"fw\":\"%s\",\"staIp\":\"%s\",\"apIp\":\"%s\",\"uplink\":%s}",
+        fwStr, staStr, p4WifiApIpStr(), staUp ? "true" : "false");
+    if (jLen > 0 && (size_t)jLen < sizeof(jbuf)) {
+      udpDisc.beginPacket(clientIp, clientPort);
+      udpDisc.write((const uint8_t *)jbuf, (size_t)jLen);
+      udpDisc.endPacket();
+    }
+  }
+}
+
 static void p4DnsProxyTask(void *) {
-  WiFiUDP udpSrv, udpUp;
+  WiFiUDP udpSrv, udpUp, udpDisc;
   bool listening = false;
+  bool discListening = false;
   P4DnsPendingSlot pending[16] = {};
   uint16_t nextUpId = 0x4100u;
   uint8_t buf[520];
@@ -377,6 +418,21 @@ static void p4DnsProxyTask(void *) {
   char qname[P4_DNS_MAX_DOMAIN_LEN + 2u];
 
   for (;;) {
+    bool worked = false;
+
+    // App 手机热点中继 UDP 发现监听（端口 42100，不受 DNS 过滤开关影响）。
+    if (p4NetworkWifiStarted) {
+      if (!discListening) {
+        discListening = udpDisc.begin(P4_DISCOVER_UDP_PORT);
+      }
+      if (discListening) {
+        p4DnsHandleDiscoverUdp(udpDisc, worked);
+      }
+    } else if (discListening) {
+      udpDisc.stop();
+      discListening = false;
+    }
+
     const bool wantListen = __atomic_load_n(&p4DnsUplinkReady, __ATOMIC_ACQUIRE) && p4DnsFilterActive();
     if (!wantListen) {
       if (listening) {
@@ -385,7 +441,7 @@ static void p4DnsProxyTask(void *) {
         memset(pending, 0, sizeof(pending));
         listening = false;
       }
-      vTaskDelay(pdMS_TO_TICKS(50));
+      vTaskDelay(pdMS_TO_TICKS(worked ? 2 : (discListening ? 20 : 50)));
       continue;
     }
     if (!listening) {
@@ -394,12 +450,11 @@ static void p4DnsProxyTask(void *) {
       } else {
         udpSrv.stop();
         udpUp.stop();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(worked ? 2 : 100));
         continue;
       }
     }
 
-    bool worked = false;
     for (int iter = 0; iter < 6; ++iter) {
       const int pktLen = udpSrv.parsePacket();
       if (pktLen <= 0) break;

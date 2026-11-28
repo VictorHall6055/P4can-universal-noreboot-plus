@@ -56,15 +56,17 @@
 #define TLSS_NR_KEY_ON      "on"        // 免重启补发开关（跨上电保持）
 #define TLSS_NR_KEY_BAN     "banned"    // 被封车辆
 #define TLSS_NR_KEY_REST    "restore"   // TLSSC 恢复（0x331 读改重发）
-#define TLSS_NR_KEY_HEX     "hex"       // 缓存的 0x331 载荷（8 字节 hex）
+#define TLSS_NR_KEY_HEX     "hex"       // 缓存的 0x331 载荷（hex）
+#define TLSS_NR_KEY_LEN     "len"       // 缓存帧精确长度（通常 Model 3/Y 为 6 字节）
 
 static constexpr uint32_t TLSS_NR_WINDOW_MS      = 60000u;  // 每次上电的补发窗口
-static constexpr uint32_t TLSS_NR_PERIOD_MS      = 100u;    // 补发周期 10 Hz
+static constexpr uint32_t TLSS_NR_PERIOD_MS      = 100u;    // 稳态补发周期 10 Hz
+static constexpr uint32_t TLSS_NR_WAKE_PERIOD_MS = 50u;     // 唤醒前 5s 高频 20 Hz 抢占补发
+static constexpr uint32_t TLSS_NR_WAKE_FAST_MS   = 5000u;
 static constexpr uint16_t TLSS_NR_MAX_FRAMES     = 600u;    // 单窗口最多补发帧数
-static constexpr uint32_t TLSS_NR_STOCK_FRESH_MS = 2000u;   // 车自己在发：让位阈值
-static constexpr uint32_t TLSS_NR_IDLE_REARM_MS  = 30000u;  // 静默这么久视为新一轮上电
-static constexpr uint32_t TLSS_NR_STOCK_GAP_MS   = 15000u;  // 0x331 静默超过这么久再恢复 = 唤醒
-                                                          // （与闭源 rebootfix 的 14999 阈值一致）
+static constexpr uint32_t TLSS_NR_STOCK_FRESH_MS = 2000u;   // 车自己在发且回显成功时的让位阈值
+static constexpr uint32_t TLSS_NR_IDLE_REARM_MS  = 6000u;   // 总线静默 >=6s 后恢复即视为休眠唤醒
+static constexpr uint32_t TLSS_NR_STOCK_GAP_MS   = 6000u;   // 0x331 静默 >=6s 后恢复即视为车机唤醒
 static constexpr uint16_t TLSS_NR_ID                = 0x331u;
 static constexpr uint8_t  TLSS_NR_SELF_DRIVING_BITS  = 0x1Bu; // byte0 低 6 位
 
@@ -100,8 +102,12 @@ static volatile int16_t  tlssNrLastErr = 0;   // esp_err_t 用 int16_t，int8_t 
 static volatile uint32_t tlssNrArmedMs = 0;   // 窗口起点
 static volatile uint16_t tlssNrBurst = 0;     // 本轮已补发帧数
 static volatile uint32_t tlssNrEpochSeen = 0; // 上次看到的 recovery epoch
+static volatile uint32_t tlssNrWakeCountSeen = 0;
 static volatile bool tlssNrIdleLatched = false; // 总线已进入长时间静默（等它恢复）
+static volatile bool tlssNrLastEchoOk = true;   // 上一次 0x331 读改重发是否实际发出
 static volatile bool tlssNrPriorityActive = false; // 防重启 TX 正在抢占最高优先级
+static TaskHandle_t tlssNrTaskHandle = nullptr;
+static portMUX_TYPE tlssNrStateMux = portMUX_INITIALIZER_UNLOCKED;
 
 // ── 车型能力 ─────────────────────────────────────────────────
 // 与 v3.29.3 的 vehicleProfileTlsscRestoreSupported() 同义：
@@ -119,9 +125,12 @@ static inline bool tlssNrPriorityYieldDue(uint32_t now) {
   if (canUsbPassive() || canTxAdministrativeHold || !twaiReady) return false;
   if (tlssNrArmedMs == 0u || tlssNrBurst >= TLSS_NR_MAX_FRAMES) return false;
   if ((uint32_t)(now - tlssNrArmedMs) > TLSS_NR_WINDOW_MS) return false;
-  if (tlssNrStockMs && (uint32_t)(now - tlssNrStockMs) < TLSS_NR_STOCK_FRESH_MS) return false;
+  if (tlssNrStockMs && tlssNrLastEchoOk && (uint32_t)(now - tlssNrStockMs) < TLSS_NR_STOCK_FRESH_MS) return false;
+  const uint32_t period = ((uint32_t)(now - tlssNrArmedMs) < TLSS_NR_WAKE_FAST_MS)
+                              ? TLSS_NR_WAKE_PERIOD_MS
+                              : TLSS_NR_PERIOD_MS;
   return tlssNrLastReplayMs == 0u ||
-         (uint32_t)(now - tlssNrLastReplayMs) + 12u >= TLSS_NR_PERIOD_MS;
+         (uint32_t)(now - tlssNrLastReplayMs) + 12u >= period;
 }
 
 // ── 从旧固件迁移开关状态 ─────────────────────────────────────
@@ -172,11 +181,14 @@ static void tlssNrLoad() {
   tlssNrBanned = p.getBool(TLSS_NR_KEY_BAN, false);
   tlssNrRestore = p.getBool(TLSS_NR_KEY_REST, false);
   String hex = p.getString(TLSS_NR_KEY_HEX, "");
+  const bool hasLenKey = p.isKey(TLSS_NR_KEY_LEN);
+  const uint8_t savedLen = (uint8_t)p.getUChar(TLSS_NR_KEY_LEN, 0u);
   p.end();
 
-  if (hex.length() == 16) {
+  if (hex.length() >= 2 && hex.length() <= 16 && (hex.length() % 2u) == 0u) {
+    uint8_t byteCount = (uint8_t)(hex.length() / 2u);
     bool ok = true;
-    for (uint8_t i = 0; i < 8; i++) {
+    for (uint8_t i = 0; i < byteCount; i++) {
       auto nib = [](char c) -> int8_t {
         if (c >= '0' && c <= '9') return (int8_t)(c - '0');
         if (c >= 'a' && c <= 'f') return (int8_t)(c - 'a' + 10);
@@ -188,26 +200,36 @@ static void tlssNrLoad() {
       tlssNrFrame[i] = (uint8_t)((a << 4) | b);
     }
     if (ok) {
-      tlssNrFrameLen = 8;
+      if (savedLen >= 1u && savedLen <= byteCount) {
+        byteCount = savedLen;
+      } else if (!hasLenKey && byteCount == 8u && tlssNrFrame[6] == 0u && tlssNrFrame[7] == 0u) {
+        // 兼容旧版未保存 DLC 的 NVS 缓存：Model 3/Y 原生 0x331 为 6 字节，修正为 6 避免冷唤醒被车机丢弃
+        byteCount = 6u;
+      }
+      tlssNrFrameLen = byteCount;
       tlssNrFrameValid = true;
     }
   }
-  tlssNrPersisted = tlssNrFrameValid;  // 已从 NVS 读回，本轮不必再写同一条
+  tlssNrPersisted = tlssNrFrameValid && hasLenKey;
   tlssNrEpochSeen = 0;
+  tlssNrWakeCountSeen = canRecoveryWakeCount;
   tlssNrIdleLatched = false;
+  tlssNrLastEchoOk = true;
 }
 
 // 每个上电周期最多写一次：0x331 的计数器每帧都变，逐帧落盘会把 flash 写废。
 static void tlssNrPersistFrame() {
-  if (tlssNrPersisted || !tlssNrFrameValid) return;
+  if (tlssNrPersisted || !tlssNrFrameValid || tlssNrFrameLen == 0u || tlssNrFrameLen > 8u) return;
   char hex[17];
-  for (uint8_t i = 0; i < 8; i++) snprintf(hex + i * 2, 3, "%02X", tlssNrFrame[i]);
-  hex[16] = '\0';
+  const uint8_t len = tlssNrFrameLen;
+  for (uint8_t i = 0; i < len; i++) snprintf(hex + i * 2, 3, "%02X", tlssNrFrame[i]);
+  hex[len * 2] = '\0';
   Preferences p;
   if (!p.begin(TLSS_NR_NS, false)) return;
   const size_t n = p.putString(TLSS_NR_KEY_HEX, hex);
+  const size_t nl = p.putUChar(TLSS_NR_KEY_LEN, len);
   p.end();
-  if (n > 0) tlssNrPersisted = true;
+  if (n > 0 && nl > 0) tlssNrPersisted = true;
 }
 
 static bool tlssNrPersistFlag(const char *key, bool value) {
@@ -232,10 +254,10 @@ static TlssNrTxResult tlssNrTransmit(const twai_message_t &msg, bool priorityWai
   }
 
   esp_err_t err = ESP_ERR_INVALID_STATE;
-  // epoch 在锁内读取：任何一帧入队都不会与 epoch 失效交叉。
+  // epoch 在锁内读取；0x331 仅走 CAN B (CHASSIS / VH)，绝不因等待 CAN A 唤醒而阻断休眠唤醒窗口。
   const uint32_t epoch = canTxBarrierState.epoch;
   if (!canTxAdministrativeHold && twaiReady && epoch != 0u &&
-      canTxBarrierAllowsMaskedPure(canTxBarrierState, epoch, CAN_TX_FRESH_BOTH))
+      canTxBarrierAllowsMaskedPure(canTxBarrierState, epoch, CAN_TX_FRESH_VH))
     err = p4CanSendB(&msg, 0, CAN_TX_TRACE_SOURCE_TLSSC);
 
   xSemaphoreGive(canTxBarrierMutex);
@@ -249,6 +271,25 @@ static TlssNrTxResult tlssNrTransmit(const twai_message_t &msg, bool priorityWai
   return TLSS_NR_TX_FAIL;
 }
 
+// 由 CAN B RX 路径在检测到首帧 / 静默超过 4.5s 后恢复时即时唤醒，不等 100ms 轮询
+static inline void tlsscNrNotifyWake(uint32_t now) {
+  portENTER_CRITICAL(&tlssNrStateMux);
+  tlssNrIdleLatched = false;
+  const uint32_t stamp = now ? now : 1u;
+  if (tlssNrArmedMs == 0u || (uint32_t)(now - tlssNrArmedMs) >= 3000u ||
+      tlssNrBurst >= TLSS_NR_MAX_FRAMES) {
+    tlssNrArmedMs = stamp;
+    tlssNrBurst = 0;
+    tlssNrLastReplayMs = 0;
+    tlssNrStockMs = 0;
+    tlssNrLastEchoOk = false;
+    if (tlssNrWakeRearms != 0xFFFFFFFFu) tlssNrWakeRearms++;
+  }
+  portEXIT_CRITICAL(&tlssNrStateMux);
+  TaskHandle_t h = tlssNrTaskHandle;
+  if (h) xTaskNotifyGive(h);
+}
+
 // ── 车端 0x331 观察（CAN B 分发表调用）─────────────────────
 // 两件事：①记录「车确实在自己发」；②缓存补丁后的载荷。
 // 开关关着也缓存（只写 RAM），否则用户第一次打开要白等一轮上电。
@@ -260,11 +301,13 @@ static void tlsscNrObserve331(const twai_message_t &f) {
   const uint32_t prevStockMs = tlssNrStockMs;
   tlssNrStockMs = now ? now : 1u;
 
-  // 唤醒检测（按闭源 rebootfix 反汇编还原的语义）：
-  // 0x331 静默 >15s 后恢复的第一帧 = 车机/车辆刚醒来。重开补发窗口，
-  // 让缓存的补丁帧在车机读配置的任何时刻都在总线上。补发本身仍受
-  // 2s 让位约束——车连续发时我们不会动手，只在它的间隙里补。
-  // 覆盖「总线没睡但车机单独重启」的场景（epoch/总线空闲检测捕获不到）。
+  uint8_t patched[8] = {};
+  const uint8_t n = f.data_length_code > 8u ? 8u : f.data_length_code;
+  memcpy(patched, f.data, n);
+  patched[0] = (uint8_t)((patched[0] & 0xC0U) | TLSS_NR_SELF_DRIVING_BITS);
+
+  bool needPersist = false;
+  portENTER_CRITICAL(&tlssNrStateMux);
   if (tlssNrEnabled && tlssNrFrameValid && prevStockMs != 0u &&
       (uint32_t)(now - prevStockMs) > TLSS_NR_STOCK_GAP_MS) {
     tlssNrArmedMs = now ? now : 1u;
@@ -272,12 +315,6 @@ static void tlsscNrObserve331(const twai_message_t &f) {
     tlssNrLastReplayMs = 0;
     if (tlssNrWakeRearms != 0xFFFFFFFFu) tlssNrWakeRearms++;
   }
-
-  uint8_t patched[8] = {};
-  const uint8_t n = f.data_length_code > 8u ? 8u : f.data_length_code;
-  memcpy(patched, f.data, n);
-  patched[0] = (uint8_t)((patched[0] & 0xC0U) | TLSS_NR_SELF_DRIVING_BITS);
-
   bool changed = (tlssNrFrameLen != n) || !tlssNrFrameValid;
   for (uint8_t i = 0; i < n && !changed; i++)
     if (tlssNrFrame[i] != patched[i]) changed = true;
@@ -285,40 +322,55 @@ static void tlsscNrObserve331(const twai_message_t &f) {
     memcpy(tlssNrFrame, patched, n);
     tlssNrFrameLen = n;
     tlssNrFrameValid = true;
-    if (tlssNrEnabled) tlssNrPersistFrame();
+    tlssNrPersisted = false;
+    needPersist = tlssNrEnabled;
   }
+  portEXIT_CRITICAL(&tlssNrStateMux);
+  if (needPersist) tlssNrPersistFrame();
 
   // 读-改-重发：只在两个开关都开着、且车型受支持时动作。
   if (!tlssNrBanned || !tlssNrRestore) return;
   if (!tlssNrProfileSupported()) return;
   if (canUsbPassive()) return;
-  if (patched[0] == f.data[0]) return;          // 车已经是 SELF_DRIVING
-  if (!twaiNonSummonAdmissionOpen()) return;
+  if (patched[0] == f.data[0]) {
+    tlssNrLastEchoOk = true;
+    return;          // 车已经是 SELF_DRIVING
+  }
 
   twai_message_t out = f;
   out.flags = 0;
   memcpy(out.data, patched, n);
   out.data_length_code = n;
   const TlssNrTxResult r = tlssNrTransmit(out, true);
-  if (r == TLSS_NR_TX_OK) tlssNrEchoOk++;
-  else if (r == TLSS_NR_TX_FAIL) tlssNrEchoFail++;
+  if (r == TLSS_NR_TX_OK) {
+    tlssNrEchoOk++;
+    tlssNrLastEchoOk = true;
+  } else {
+    tlssNrLastEchoOk = false;
+    if (r == TLSS_NR_TX_FAIL) tlssNrEchoFail++;
+    TaskHandle_t h = tlssNrTaskHandle;
+    if (h) xTaskNotifyGive(h);
+  }
 }
 
-// ── 重开窗口：epoch 变化 / 总线唤醒 ──────────────────────────
-// 只在「真的发生了一轮新上电」时重开，绝不周期性重开 —— 否则车静默时
-// 会一直 10 Hz 造帧，把总线灌满。
-//   ① recovery epoch 变化：控制器重启/恢复，等于一轮新的注入周期；
-//   ② 总线静默→恢复的跳变：车睡了一觉又醒了（休眠唤醒场景）；
-//   ③ 窗口还开着、或还没补满时不重开。
+// ── 重开窗口：epoch 变化 / 恢复唤醒 / 总线静默后唤醒 ────────
 static void tlssNrMaybeRearm(uint32_t now) {
   bool rearm = false;
   bool epochChanged = false;
+  bool wakeEvent = false;
 
   const uint32_t epochNow = canTxEpochSnapshot();
   if (epochNow != 0u && epochNow != tlssNrEpochSeen) {
     tlssNrEpochSeen = epochNow;
     rearm = true;
     epochChanged = true;
+  }
+
+  const uint32_t wakeNow = canRecoveryWakeCount;
+  if (wakeNow != tlssNrWakeCountSeen) {
+    tlssNrWakeCountSeen = wakeNow;
+    rearm = true;
+    wakeEvent = true;
   }
 
   // 静默锁存：只在「进入静默」时置位、在「静默结束」时消费一次。
@@ -330,22 +382,28 @@ static void tlssNrMaybeRearm(uint32_t now) {
     } else if (tlssNrIdleLatched) {
       tlssNrIdleLatched = false;
       rearm = true;   // 静默结束：车醒了，重新开窗
+      wakeEvent = true;
     }
   }
 
   if (!rearm) return;
-  // 窗口正在进行中就不打断（burst 别被清零，补发节奏保持连续）；
-  // epoch 变了则必须按新一轮处理：旧 epoch 下准备的帧已经不允许入队。
+  portENTER_CRITICAL(&tlssNrStateMux);
   const bool windowActive = tlssNrArmedMs != 0u &&
                             (uint32_t)(now - tlssNrArmedMs) <= TLSS_NR_WINDOW_MS &&
                             tlssNrBurst < TLSS_NR_MAX_FRAMES;
-  if (windowActive && !epochChanged) return;
-  tlssNrArmedMs = now ? now : 1u;
-  tlssNrBurst = 0;
-  tlssNrLastReplayMs = 0;
+  if (!windowActive || epochChanged || wakeEvent) {
+    tlssNrArmedMs = now ? now : 1u;
+    tlssNrBurst = 0;
+    tlssNrLastReplayMs = 0;
+    if (wakeEvent || epochChanged) {
+      tlssNrStockMs = 0;
+      tlssNrLastEchoOk = false;
+    }
+  }
+  portEXIT_CRITICAL(&tlssNrStateMux);
 }
 
-// ── 周期补发（独立任务，100 ms 一次）─────────────────────────
+// ── 周期补发（独立任务：唤醒前 5s 为 50ms，其余为 100ms）──────
 static void tlsscNrTick() {
   const uint32_t now = (uint32_t)millis();
   tlssNrMaybeRearm(now);
@@ -355,42 +413,57 @@ static void tlsscNrTick() {
   if (!tlssNrProfileSupported()) return;
   if (canUsbPassive() || canTxAdministrativeHold || !twaiReady) return;
 
+  portENTER_CRITICAL(&tlssNrStateMux);
   if (tlssNrArmedMs == 0) tlssNrArmedMs = now ? now : 1u;
-  if ((uint32_t)(now - tlssNrArmedMs) > TLSS_NR_WINDOW_MS) return;
-  if (tlssNrBurst >= TLSS_NR_MAX_FRAMES) return;
-  if (!tlssNrFrameValid) { tlssNrReplaySkip++; return; }
+  const uint32_t armedMs = tlssNrArmedMs;
+  const uint16_t burst = tlssNrBurst;
+  const bool valid = tlssNrFrameValid;
+  const uint8_t flen = tlssNrFrameLen;
+  uint8_t frameCopy[8] = {};
+  if (valid) memcpy(frameCopy, tlssNrFrame, 8);
+  portEXIT_CRITICAL(&tlssNrStateMux);
 
-  // 车自己在发就让位：读改重发那条路已经覆盖，不必和真帧抢总线。
-  if (tlssNrStockMs && (uint32_t)(now - tlssNrStockMs) < TLSS_NR_STOCK_FRESH_MS) return;
-  if (tlssNrLastReplayMs && (uint32_t)(now - tlssNrLastReplayMs) < TLSS_NR_PERIOD_MS) return;
-  if (!twaiNonSummonAdmissionOpen()) { tlssNrReplaySkip++; return; }
+  if ((uint32_t)(now - armedMs) > TLSS_NR_WINDOW_MS) return;
+  if (burst >= TLSS_NR_MAX_FRAMES) return;
+  if (!valid || flen == 0u) { tlssNrReplaySkip++; return; }
+
+  // 车自己在发且刚才 echo 成功才让位；若 echo 未发成功（例如 CAN A 未醒/短暂被挡），立即由补发接管。
+  if (tlssNrStockMs && tlssNrLastEchoOk && (uint32_t)(now - tlssNrStockMs) < TLSS_NR_STOCK_FRESH_MS) return;
+  const uint32_t period = ((uint32_t)(now - armedMs) < TLSS_NR_WAKE_FAST_MS)
+                              ? TLSS_NR_WAKE_PERIOD_MS
+                              : TLSS_NR_PERIOD_MS;
+  if (tlssNrLastReplayMs && (uint32_t)(now - tlssNrLastReplayMs) < period) return;
 
   twai_message_t out = {};
   out.identifier = TLSS_NR_ID;
   out.extd = 0;
   out.rtr = 0;
-  out.data_length_code = tlssNrFrameLen;
-  memcpy(out.data, tlssNrFrame, tlssNrFrameLen);
+  out.data_length_code = flen;
+  memcpy(out.data, frameCopy, flen);
 
   const TlssNrTxResult r = tlssNrTransmit(out, true);
   if (r == TLSS_NR_TX_BUSY) {
-    // 屏障锁被别的注入占用（灯光 5 ms 任务 / AP / 维护）：
-    // 让位，不推进节流时间戳、不计 burst，下个周期自然重试。
     tlssNrReplayBusy++;
     return;
   }
   if (r == TLSS_NR_TX_GATED) { tlssNrReplaySkip++; return; }
 
   tlssNrLastReplayMs = now ? now : 1u;
+  portENTER_CRITICAL(&tlssNrStateMux);
   tlssNrBurst++;
+  portEXIT_CRITICAL(&tlssNrStateMux);
   if (r == TLSS_NR_TX_OK) tlssNrReplayOk++;
   else tlssNrReplayFail++;
 }
 
 static void tlsscNrTask(void *) {
+  tlssNrTaskHandle = xTaskGetCurrentTaskHandle();
   for (;;) {
     tlsscNrTick();
-    vTaskDelay(pdMS_TO_TICKS(TLSS_NR_PERIOD_MS));
+    const uint32_t now = (uint32_t)millis();
+    const bool fast = tlssNrArmedMs != 0u &&
+                      (uint32_t)(now - tlssNrArmedMs) < TLSS_NR_WAKE_FAST_MS;
+    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(fast ? TLSS_NR_WAKE_PERIOD_MS : TLSS_NR_PERIOD_MS));
   }
 }
 

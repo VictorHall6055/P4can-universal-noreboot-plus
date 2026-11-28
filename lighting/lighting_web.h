@@ -10,9 +10,9 @@ static void httpLightingStats(){
   const bool hornFlash=lightingHornFlash;
   const bool hornActive=lightingState.horn.active;
   const bool rearFogBurstActive=lightingState.rearFogBurstEdges>0u;
-  const bool rearFogLampOn=lightingState.rearFogLampOn&&lightingState.rearFogLampMs!=0u&&(uint32_t)(now-lightingState.rearFogLampMs)<=2000u;
+  const bool rearFogLampOn=lightingState.rearFogLampOn&&lightingAgeOkPure(now,lightingState.rearFogLampMs,2000u);
   const bool rearFogTemplateReady=lightingState.vcCtrl.valid;
-  const bool highBeamTemplateReady=lightingState.stalk.valid&&(uint32_t)(now-lightingState.stalk.ms)<=1000u;
+  const bool highBeamTemplateReady=lightingState.stalk.valid&&lightingAgeOkPure(now,lightingState.stalk.ms,1000u);
   const uint32_t ok=lightingTxOk,fail=lightingTxFail;
   portEXIT_CRITICAL(&lightingSettingsMux);
   String json;JsonWriterArduino jw(json);jw.boolean("ok",true);jw.boolean("apForcedHighBeam",permission);

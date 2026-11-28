@@ -1,20 +1,21 @@
-# P4can-universal-noreboot-plus (`3.35.3.2`)
+# P4can-universal-noreboot-plus (`3.35.3.3`)
 
 > **Language / 语言**: **English** | **[简体中文说明 (README.zh-CN.md)](README.zh-CN.md)**
 
-An enhanced ESP32-P4 Tesla CAN gateway firmware built upon **[CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot)** (`v3.35.3-norestart2`) and integrated with verified lighting & pilot interactions inspired by **[i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more)**.
+An enhanced ESP32-P4 Tesla CAN gateway firmware built upon **[CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot)** (`v3.35.3-norestart2`) and integrated with verified lighting & pilot interactions inspired by **[i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more)**. Maintainer / Authors: **一缕微光**, LP_YL, XBmod, Frizull, 3dfx, SupXL.
 
 While adding new lighting, networking, and diagnostic capabilities, **TLSSC Anti-Reboot (`0x331` via `tlssc_norestart.h`) strictly retains the highest TX and task priority** on CAN-B (`P4_TLSSC_NR_PRIORITY_YIELD`). Both **ESP32-P4 + ESP32-C5** (5 GHz Dual-Band & Wi-Fi 6) and **ESP32-P4 + ESP32-C6** (2.4 GHz Wi-Fi 6) boards are supported with 32 MB flash builds.
 
-> **v3.35.3.2 Updates**:
-> - Fixed **2021 Model 3 Rear Fog (`0x273` / `0x3E3`)** compatibility (wider BODY cadence tolerance, `0x3E3` 2-bit status decoding, `40ms` refresh, non-blocking fallback).
-> - Fixed **AP Forced High Beam** dropping after a few seconds (cross-core signed timestamp check, push-echo race fix, cooldown re-arm).
-> - Added **Repeater DNS Domain Filter** (Blacklist / Whitelist persisted in NVS) with **200 / 204 Connectivity Probe Spoofing**.
-> - Added **Dashboard Access IP Option** (`192.168.4.1` default vs `100.100.1.1` pseudo-public IP) and updated project URL to `https://github.com/VictorHall6055/P4can-universal-noreboot-plus`.
+> **v3.35.3.3 Updates**:
+> - Fixed **Reverse Gear Rear Fog Flashing (`0x273` / `0x3E3`)**: added 250 ms reverse hysteresis and closed-loop toggle/level-hold (`10ms`) state machine so reverse rear fog stays steady instead of flickering on every UI `0x273` refresh.
+> - Fixed **AP Forced High Beam Not Holding**: eliminated cross-core timestamp wrap, guarded against self-push `0x249` echo overwriting stalk release readiness, and decoupled `0x3E9` keepalive from busy TX branches.
+> - Fixed **Banned-Car Sleep/Wake MCU Reboot (`tlssc_norestart.h`)**: persisted exact `0x331` DLC (`6` bytes on Model 3/Y) across sleep/reboot, decoupled wake TX from slow CAN-A readiness (`CAN_TX_FRESH_VH`), and added an instant wake-burst on CAN-B resume.
+> - Added **UDP `42100` Hotspot Discovery Responder** (`p4_dns_filter.h`) & **Multi-Mode Android App (`v1.3.0`)** supporting AP `192.168.4.1`, Phone Hotspot Repeater direct LAN discovery, and `100.100.1.1`.
+> - Prepended **一缕微光** to About Developers and bumped firmware version to `3.35.3.3`.
 
 <p align="center">
   <img src="docs/images/wifi-dns-filter.png" alt="Repeater DNS Domain Filter & 200/204 Probe Spoof" width="380" />
-  <img src="docs/images/about-v33532.png" alt="About Firmware Version 3.35.3.2" width="380" />
+  <img src="docs/images/about-v33533.png" alt="About Firmware Version 3.35.3.3" width="380" />
 </p>
 
 ---
@@ -60,6 +61,12 @@ Turn your P4-CAN module into an internet-sharing **AP + STA NAPT repeater** so p
 <p align="center">
   <img src="docs/images/home-overview.png" alt="Home Dashboard with MCU Temperature and Uptime" width="380" />
 </p>
+
+### 5. Multi-Mode Android Companion App (`android-app/`, `v1.3.0`)
+Download APK directly: **[P4can-App-v1.3.0-multi-mode.apk](android-app/P4can-App-v1.3.0-multi-mode.apk)** (also attached to **GitHub Releases**; uninstall any previous `1.2.1` signature build before installing):
+- **Mode 1 — Default AP (`192.168.4.1`)**: Original direct AP connection mode via `WifiNetworkSpecifier` or manual Wi-Fi.
+- **Mode 2 — Phone Hotspot Relay (No Wi-Fi Switch Needed)**: Keep your phone's Personal Hotspot enabled for ESP32 STA uplink; the app locates ESP32 automatically via **UDP `42100` broadcast** (`P4CAN_DISCOVER`) + fast LAN `/24` HTTP probing without disconnecting cellular data or hotspot.
+- **Mode 3 — Pseudo-Public AP IP (`100.100.1.1`)**: Removes the hardcoded `192.168.4.1`-only HTTP restriction in `UrlPolicy` and `network_security_config.xml`, allowing saving and direct HTTP connection to `100.100.1.1` or custom private IPv4 addresses.
 
 ---
 

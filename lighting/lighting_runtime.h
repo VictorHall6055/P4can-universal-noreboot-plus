@@ -37,6 +37,9 @@ struct LightingRuntime {
   bool rearFogBurstLevel=false, rearFogAsserted=false;
   bool rearFogLampOn=false;
   uint32_t rearFogLampMs=0, lastRearFogEdgeMs=0, lastRearFogAttempt=0;
+  uint32_t rearFogRevHoldUntilMs=0, rearFogLastUiZeroMs=0;
+  bool rearFogWeAsserted=false, rearFogLevelHold=false, rearFogUiZeroPending=false;
+  uint8_t rearFogHoldOffLeft=0, rearFogTurnOffTries=0;
   uint32_t lastBodyAttempt=0, lastStalkAttempt=0, strobeConflicts=0;
 };
 static portMUX_TYPE lightingSettingsMux=portMUX_INITIALIZER_UNLOCKED;
@@ -152,8 +155,16 @@ static void lightingObserve(uint8_t bus,uint32_t id,uint8_t dlc,const uint8_t *d
   }
   if((bus==P4_BODY||bus==P4_CHASSIS)&&id==LIGHTING_ID_REAR_FOG_LAMP&&dlc>=2u){
     // 0x3E3 d1[1:0] VCRIGHT_rearFogLightStatus: 0=OFF, 1=ON, 2=FAULT, 3=SNA
-    s.rearFogLampOn=(data[LIGHTING_3E3_D1]&0x03u)==1u;
-    s.rearFogLampMs=ms;
+    const bool nowOn=(data[LIGHTING_3E3_D1]&0x03u)==1u;
+    if(s.rearFogLampMs!=0u&&s.rearFogLampOn&&!nowOn&&
+       s.rearFogLastUiZeroMs!=0u&&lightingAgeOkPure(ms,s.rearFogLastUiZeroMs,600u)&&
+       (!s.vcCtrl.sent||!lightingAgeOkPure(ms,s.vcCtrl.sentMs,250u))&&
+       (lightingPilotMode==3u||s.rearFogRevHoldUntilMs!=0u)){
+      // 收到原厂 0x273=0 后灯立即熄灭，说明本车型为电平保持型，切至持续保持
+      s.rearFogLevelHold=true;
+    }
+    s.rearFogLampOn=nowOn;
+    s.rearFogLampMs=ms?ms:1u;
   }
   if(id==LIGHTING_ID_VEHICLE_CONTROL&&dlc>=3u&&dlc<=8u){
     const bool fromBody=(bus==P4_BODY);
@@ -166,6 +177,12 @@ static void lightingObserve(uint8_t bus,uint32_t id,uint8_t dlc,const uint8_t *d
         if(fromBody)s.vcCtrlBodySeen=true;
         memset(s.vcCtrl.data,0,8);
         memcpy(s.vcCtrl.data,data,dlc);
+        if((data[LIGHTING_273_D2]&LIGHTING_273_REAR_FOG_MASK)==0u){
+          s.rearFogLastUiZeroMs=ms?ms:1u;
+          if(s.rearFogLevelHold&&(lightingPilotMode==3u||s.rearFogRevHoldUntilMs!=0u)){
+            s.rearFogUiZeroPending=true;
+          }
+        }
       }
     }
   }
@@ -201,7 +218,7 @@ static void lightingObserve(uint8_t bus,uint32_t id,uint8_t dlc,const uint8_t *d
           const uint8_t dir=(data[1]>>4)&3u;
           const bool quiet=!t.sent||!lightingAgeOkPure(ms,t.sentMs,LIGHTING_AP1_TX_QUIET_MS-1u);
           lightingAp1RunStepPure(s.run,lightingPermission&&ap&&activeTurnSignalVariant==TURN_SIGNAL_STALK,dir==2u&&s.prevPush!=2u,quiet,ms);
-          s.prevPush=dir;if(dir==2u)s.carPushMs=ms;
+          s.prevPush=dir;if(dir==2u&&quiet)s.carPushMs=ms;
           if(P4_LIGHTING_BODY_TX_SUPPORTED()&&lightingStrobeGesture&&activeTurnSignalVariant==TURN_SIGNAL_STALK){
             const bool pullEdge=(dir==LIGHTING_249_HIGH_BEAM_PULL&&s.prevPull!=LIGHTING_249_HIGH_BEAM_PULL);
             const int8_t act=lightingHsGestureFeedPure(s.hsGesture,ms,pullEdge,s.hs2.armed,s.hs2.armedAtMs);
@@ -233,15 +250,18 @@ static void lightingService(){
   const uint8_t gear=gear118Raw;const uint32_t gearMs=gear118Ms;
   portEXIT_CRITICAL(&stateMux);
   portENTER_CRITICAL(&nagCtxMux);
-  const bool speedValid=nagCtx.vehicleSpeedValid&&uint32_t(now-nagCtx.lastVehicleSpeedMs)<=500u;
+  const bool speedValid=nagCtx.vehicleSpeedValid&&lightingAgeOkPure(now,nagCtx.lastVehicleSpeedMs,500u);
   const int32_t speed=nagPartySpeedKphX100Pure(nagCtx.vehicleSpeedRaw);
   portEXIT_CRITICAL(&nagCtxMux);
   portENTER_CRITICAL(&blinkAMux);
   const bool blinkerBusy=activeTurn!=STALK_IDLE||blinkerTxRequestState.pendingDir!=0u;
   portEXIT_CRITICAL(&blinkAMux);
-  CanFrame out={};out.bus=P4_BODY;bool send=false;
-  enum TxTarget:uint8_t{TX_NONE=0,TX_STALK_AP1,TX_STALK_STROBE,TX_STALK_STROBE_REL,TX_STALK_HORN,TX_STALK_HORN_REL,TX_BODY_3E9,TX_REAR_FOG_273} txTarget=TX_NONE;
-  uint8_t counter=0;bool requested=false;bool wantRearFogOn=false;bool isBurstEdge=false;bool horn3e9Next=false;
+  CanFrame stalkOut={};stalkOut.bus=P4_BODY;bool sendStalk=false;
+  enum StalkTxTarget:uint8_t{STALK_NONE=0,STALK_AP1,STALK_STROBE,STALK_STROBE_REL,STALK_HORN,STALK_HORN_REL} stalkTarget=STALK_NONE;
+  CanFrame bodyOut={};bodyOut.bus=P4_BODY;bool sendBody=false;
+  CanFrame fogOut={};fogOut.bus=P4_BODY;bool sendFog=false;
+  uint8_t stalkCounter=0,bodyCounter=0;
+  bool requested=false,wantRearFogOn=false,isBurstEdge=false,horn3e9Next=false,fogHoldOffStep=false;
   portENTER_CRITICAL(&lightingSettingsMux);
   auto &s=lightingState;
   if(s.epoch!=epoch){s=LightingRuntime{};s.epoch=epoch;}
@@ -250,6 +270,8 @@ static void lightingService(){
     lightingHs2ResetPure(s.hs2);s.strobeReleaseNeeded=false;
     lightingHornFlashResetPure(s.horn);
     s.rearFogBurstEdges=0u;s.rearFogBurstLevel=false;s.rearFogAsserted=false;
+    s.rearFogWeAsserted=false;s.rearFogRevHoldUntilMs=0u;s.rearFogUiZeroPending=false;
+    s.rearFogHoldOffLeft=0u;s.rearFogTurnOffTries=0u;
   } else {
     lightingAp1RunStepPure(s.run,lightingPermission&&ap&&activeTurnSignalVariant==TURN_SIGNAL_STALK,false,true,now);
     const bool beam=lightingPermission&&ap&&s.run.running;
@@ -258,10 +280,10 @@ static void lightingService(){
     const bool isStalkCar=(activeTurnSignalVariant==TURN_SIGNAL_STALK);
     const bool hornOwns249=isStalkCar&&(hornActiveNow||s.horn.releaseNeeded);
     LightingBrakeSignalPure a={},b={};
-    if(s.brakeSeen[0]&&uint32_t(now-s.brakeMs[0])<=300u)a=s.brake[0];
-    if(s.brakeSeen[1]&&uint32_t(now-s.brakeMs[1])<=300u)b=s.brake[1];
+    if(s.brakeSeen[0]&&lightingAgeOkPure(now,s.brakeMs[0],300u))a=s.brake[0];
+    if(s.brakeSeen[1]&&lightingAgeOkPure(now,s.brakeMs[1],300u))b=s.brake[1];
     const auto brake=lightingMergeBrakePure(a,b);
-    const bool driveFresh=gearMs!=0u&&uint32_t(now-gearMs)<=500u&&speedValid;
+    const bool driveFresh=gearMs!=0u&&lightingAgeOkPure(now,gearMs,500u)&&speedValid;
     lightingDynHighStepPure(s.dynamic,driveFresh?lightingBrakeMode:0u,brake.brake,brake.hard,gear,driveFresh?speed:0);
     requested=s.dynamic.requested;
     bool fresh=false,lit=false,cancel=false;
@@ -271,72 +293,91 @@ static void lightingService(){
     if(!beam)lightingAp1PushResetPure(s.train);
     else if(fresh||s.train.left!=0u)train=lightingAp1TopupDuePure(s.train,beam,fresh,lit,s.carPushMs!=0u&&lightingAgeOkPure(now,s.carPushMs,119u),s.carPushMs,now,LIGHTING_TOPUP_PROFILE_RETRY,&event);
 
-    const bool stalkReady=!blinkerBusy&&s.stalk.valid&&uint32_t(now-s.stalk.ms)<=200u&&((s.stalk.data[1]>>4)&3u)==0u&&(s.stalk.data[2]&15u)==0u;
+    const bool stalkFresh=!blinkerBusy&&s.stalk.valid&&lightingAgeOkPure(now,s.stalk.ms,300u)&&(s.stalk.data[2]&15u)==0u;
+    const bool stalkIdle=((s.stalk.data[1]>>4)&3u)==0u;
+    const bool stalkReady=stalkFresh&&stalkIdle;
+    const bool stalkReadyAp1=stalkFresh&&(stalkIdle||s.train.left>0u);
     const bool strobeActive=s.hs2.armed&&isStalkCar;
     const bool strobeOwns=strobeActive||s.strobeReleaseNeeded;
     const uint8_t owner249=lighting249OwnerPure(strobeOwns,hornOwns249,train);
     if((strobeActive||hornOwns249)&&train)s.strobeConflicts++;
 
+    // A) 0x249 左拨杆通路（爆闪 / 喇叭闪灯 / AP 远光补推）
     if(owner249==LIGHTING_249_OWNER_STROBE&&stalkReady){
       if(!strobeActive&&s.strobeReleaseNeeded){
         if(uint32_t(now-s.lastStalkAttempt)>=10u){
-          send=true;txTarget=TX_STALK_STROBE_REL;out.can_id=0x249u;out.can_dlc=4;memcpy(out.data,s.stalk.data,4);
-          counter=(s.stalk.counter+1u)&15u;out.data[1]=(out.data[1]&0xc0u)|counter;
-          out.data[0]=leftStalkChecksumPure(out.data,counter);s.lastStalkAttempt=now;
+          sendStalk=true;stalkTarget=STALK_STROBE_REL;stalkOut.can_id=0x249u;stalkOut.can_dlc=4;memcpy(stalkOut.data,s.stalk.data,4);
+          stalkCounter=(s.stalk.counter+1u)&15u;stalkOut.data[1]=(stalkOut.data[1]&0xc0u)|stalkCounter;
+          stalkOut.data[0]=leftStalkChecksumPure(stalkOut.data,stalkCounter);s.lastStalkAttempt=now;
         }
       }else if(strobeActive){
         const bool pullLevel=lightingHs2LevelPure(s.hs2,now);
         const bool flipped=(pullLevel!=s.lastStrobePullSent);
         if(flipped||uint32_t(now-s.lastStalkAttempt)>=20u){
-          send=true;txTarget=TX_STALK_STROBE;out.can_id=0x249u;out.can_dlc=4;memcpy(out.data,s.stalk.data,4);
-          counter=(s.stalk.counter+1u)&15u;
-          out.data[1]=(out.data[1]&0xc0u)|(pullLevel?LIGHTING_249_PULL_BIT:0x00u)|counter;
-          out.data[0]=leftStalkChecksumPure(out.data,counter);
-          s.lastStalkAttempt=now;
-          s.lastStrobePullSent=pullLevel;
+          sendStalk=true;stalkTarget=STALK_STROBE;stalkOut.can_id=0x249u;stalkOut.can_dlc=4;memcpy(stalkOut.data,s.stalk.data,4);
+          stalkCounter=(s.stalk.counter+1u)&15u;
+          stalkOut.data[1]=(stalkOut.data[1]&0xc0u)|(pullLevel?LIGHTING_249_PULL_BIT:0x00u)|stalkCounter;
+          stalkOut.data[0]=leftStalkChecksumPure(stalkOut.data,stalkCounter);
+          s.lastStalkAttempt=now;s.lastStrobePullSent=pullLevel;
         }
       }
     }else if(owner249==LIGHTING_249_OWNER_ALBERT&&isStalkCar&&!blinkerBusy&&s.stalk.valid&&((s.stalk.data[1]>>4)&3u)==0u&&(s.stalk.data[2]&15u)==0u){
-      if(!hornActiveNow&&s.horn.releaseNeeded&&uint32_t(now-s.stalk.ms)<=800u){
+      if(!hornActiveNow&&s.horn.releaseNeeded&&lightingAgeOkPure(now,s.stalk.ms,800u)){
         if(uint32_t(now-s.lastStalkAttempt)>=10u){
-          send=true;txTarget=TX_STALK_HORN_REL;out.can_id=0x249u;out.can_dlc=4;memcpy(out.data,s.stalk.data,4);
-          counter=(s.stalk.counter+1u)&15u;out.data[1]=(out.data[1]&0xc0u)|counter;
-          out.data[0]=leftStalkChecksumPure(out.data,counter);s.lastStalkAttempt=now;
+          sendStalk=true;stalkTarget=STALK_HORN_REL;stalkOut.can_id=0x249u;stalkOut.can_dlc=4;memcpy(stalkOut.data,s.stalk.data,4);
+          stalkCounter=(s.stalk.counter+1u)&15u;stalkOut.data[1]=(stalkOut.data[1]&0xc0u)|stalkCounter;
+          stalkOut.data[0]=leftStalkChecksumPure(stalkOut.data,stalkCounter);s.lastStalkAttempt=now;
         }
-      }else if(hornActiveNow&&uint32_t(now-s.stalk.ms)<=200u){
+      }else if(hornActiveNow&&lightingAgeOkPure(now,s.stalk.ms,300u)){
         const bool flipped=(hornPullLevel!=s.lastHornPullSent);
         if(flipped||uint32_t(now-s.lastStalkAttempt)>=20u){
-          send=true;txTarget=TX_STALK_HORN;out.can_id=0x249u;out.can_dlc=4;memcpy(out.data,s.stalk.data,4);
-          counter=(s.stalk.counter+1u)&15u;
-          out.data[1]=(out.data[1]&0xc0u)|(hornPullLevel?LIGHTING_249_PULL_BIT:0x00u)|counter;
-          out.data[0]=leftStalkChecksumPure(out.data,counter);
-          s.lastStalkAttempt=now;
-          s.lastHornPullSent=hornPullLevel;
+          sendStalk=true;stalkTarget=STALK_HORN;stalkOut.can_id=0x249u;stalkOut.can_dlc=4;memcpy(stalkOut.data,s.stalk.data,4);
+          stalkCounter=(s.stalk.counter+1u)&15u;
+          stalkOut.data[1]=(stalkOut.data[1]&0xc0u)|(hornPullLevel?LIGHTING_249_PULL_BIT:0x00u)|stalkCounter;
+          stalkOut.data[0]=leftStalkChecksumPure(stalkOut.data,stalkCounter);
+          s.lastStalkAttempt=now;s.lastHornPullSent=hornPullLevel;
         }
       }
-    }else if(owner249==LIGHTING_249_OWNER_AP1&&stalkReady&&uint32_t(now-s.lastStalkAttempt)>=10u){
-      send=true;txTarget=TX_STALK_AP1;out.can_id=0x249u;out.can_dlc=4;memcpy(out.data,s.stalk.data,4);
-      counter=(s.stalk.counter+1u)&15u;out.data[1]=(out.data[1]&0xc0u)|0x20u|counter;
-      out.data[0]=leftStalkChecksumPure(out.data,counter);s.lastStalkAttempt=now;
-    }else if(s.body.valid&&uint32_t(now-s.body.ms)<=3000u&&uint32_t(now-s.lastBodyAttempt)>=20u&&
-             (beam||requested||s.dynSent||(!isStalkCar&&(hornActiveNow||s.horn3e9Sent)))){
-      send=true;txTarget=TX_BODY_3E9;out.can_id=0x3e9u;out.can_dlc=8;memcpy(out.data,s.body.data,8);
-      // Preserve the car's brake request and all unrelated bits. No beam write on stop.
-      if(requested)lightingApplyDynamicBrakePure(out.data,true);
+    }else if(owner249==LIGHTING_249_OWNER_AP1&&stalkReadyAp1&&uint32_t(now-s.lastStalkAttempt)>=10u){
+      sendStalk=true;stalkTarget=STALK_AP1;stalkOut.can_id=0x249u;stalkOut.can_dlc=4;memcpy(stalkOut.data,s.stalk.data,4);
+      stalkCounter=(s.stalk.counter+1u)&15u;stalkOut.data[1]=(stalkOut.data[1]&0xc0u)|0x20u|stalkCounter;
+      stalkOut.data[0]=leftStalkChecksumPure(stalkOut.data,stalkCounter);s.lastStalkAttempt=now;
+    }
+
+    // B) 0x3E9 车身通路（独立周期发送，不被 0x249 / 0x273 饿死）
+    if(s.body.valid&&lightingAgeOkPure(now,s.body.ms,3000u)&&uint32_t(now-s.lastBodyAttempt)>=20u&&
+       (beam||requested||s.dynSent||(!isStalkCar&&(hornActiveNow||s.horn3e9Sent)))){
+      sendBody=true;bodyOut.can_id=0x3e9u;bodyOut.can_dlc=8;memcpy(bodyOut.data,s.body.data,8);
+      if(requested)lightingApplyDynamicBrakePure(bodyOut.data,true);
       if(!isStalkCar&&hornActiveNow){
-        lightingApplyApForcedHighBeamPure(out.data,hornPullLevel,true);
-        horn3e9Next=true;
-        s.horn.releaseNeeded=false;
+        lightingApplyApForcedHighBeamPure(bodyOut.data,hornPullLevel,true);
+        horn3e9Next=true;s.horn.releaseNeeded=false;
       }else{
         horn3e9Next=false;
-        if(beam)lightingApplyApForcedHighBeamPure(out.data,true,true);
+        if(beam){
+          lightingApplyApForcedHighBeamPure(bodyOut.data,true,true);
+          if((bodyOut.data[0]&0x03u)==0u)bodyOut.data[0]=(uint8_t)(bodyOut.data[0]|0x01u);
+        }
       }
-      counter=(s.body.counter+1u)&15u;out.data[6]=(out.data[6]&15u)|(counter<<4);
-      out.data[7]=teslaAdditiveChecksumPure(0x3e9u,out.data);s.lastBodyAttempt=now;
-    }else if(s.vcCtrl.valid){
-      const bool reverseDemand=lightingReverseRearFog&&gearMs!=0u&&uint32_t(now-gearMs)<=1000u&&gear==TESLA_GEAR_R;
+      bodyCounter=(s.body.counter+1u)&15u;bodyOut.data[6]=(bodyOut.data[6]&15u)|(bodyCounter<<4);
+      bodyOut.data[7]=teslaAdditiveChecksumPure(0x3e9u,bodyOut.data);s.lastBodyAttempt=now;
+    }
+
+    // C) 0x273 后雾灯通路（倒挡防抖 + 自动识别自锁切换 / 电平保持，彻底消除倒车闪烁）
+    if(s.vcCtrl.valid){
+      const bool revRaw=lightingReverseRearFog&&gearMs!=0u&&lightingAgeOkPure(now,gearMs,1000u)&&gear==TESLA_GEAR_R;
+      if(revRaw){
+        uint32_t hold=now+250u;
+        s.rearFogRevHoldUntilMs=hold?hold:1u;
+      }else if(s.rearFogRevHoldUntilMs!=0u&&(int32_t)(now-s.rearFogRevHoldUntilMs)>=0){
+        s.rearFogRevHoldUntilMs=0u;
+      }
+      const bool reverseDemand=lightingReverseRearFog&&s.rearFogRevHoldUntilMs!=0u;
+      const bool steadyDemand=reverseDemand||lightingPilotMode==3u;
+      const bool fogFbFresh=lightingAgeOkPure(now,s.rearFogLampMs,1500u);
       bool send273=false;
       if(s.rearFogBurstEdges>0u){
+        s.rearFogUiZeroPending=false;s.rearFogHoldOffLeft=0u;
         if(s.lastRearFogEdgeMs==0u||uint32_t(now-s.lastRearFogEdgeMs)>=LIGHTING_REAR_FOG_HALF_PERIOD_MS){
           wantRearFogOn=(s.rearFogBurstEdges%2u)==0u;
           send273=true;isBurstEdge=true;
@@ -344,54 +385,102 @@ static void lightingService(){
           wantRearFogOn=s.rearFogBurstLevel;
           send273=true;
         }
-      }else if(reverseDemand||lightingPilotMode==3u){
-        wantRearFogOn=true;
-        if(!s.rearFogAsserted||uint32_t(now-s.lastRearFogAttempt)>=40u){
-          send273=true;
+      }else if(steadyDemand){
+        s.rearFogHoldOffLeft=0u;
+        if(s.rearFogLevelHold){
+          wantRearFogOn=true;
+          if(s.rearFogUiZeroPending||!s.rearFogAsserted||uint32_t(now-s.lastRearFogAttempt)>=10u){
+            send273=true;s.rearFogUiZeroPending=false;
+          }
+        }else if(fogFbFresh&&s.rearFogLampOn){
+          // 实车 0x3E3 已确认为常亮：切换型车型不再重复发 0x273，避免和原厂 0 碰撞翻转熄灭
+          s.rearFogTurnOffTries=0u;s.rearFogUiZeroPending=false;
+        }else{
+          wantRearFogOn=true;s.rearFogUiZeroPending=false;
+          if(s.lastRearFogAttempt==0u||uint32_t(now-s.lastRearFogAttempt)>=450u){
+            send273=true;
+          }
         }
       }else if(lightingPilotMode==2u){
+        s.rearFogUiZeroPending=false;s.rearFogHoldOffLeft=0u;s.rearFogWeAsserted=false;
         wantRearFogOn=(now%1000u)<450u;
         if(wantRearFogOn!=s.rearFogAsserted||uint32_t(now-s.lastRearFogAttempt)>=40u){
           send273=true;
         }
-      }else if(s.rearFogAsserted){
-        wantRearFogOn=false;
-        send273=true;
+      }else if(s.rearFogWeAsserted||s.rearFogAsserted||s.rearFogHoldOffLeft>0u){
+        s.rearFogUiZeroPending=false;
+        if(s.rearFogLevelHold){
+          if(s.rearFogHoldOffLeft==0u)s.rearFogHoldOffLeft=2u;
+          wantRearFogOn=false;
+          if(s.lastRearFogAttempt==0u||uint32_t(now-s.lastRearFogAttempt)>=20u){
+            send273=true;fogHoldOffStep=true;
+          }
+        }else if(fogFbFresh&&!s.rearFogLampOn){
+          s.rearFogWeAsserted=false;s.rearFogAsserted=false;s.rearFogTurnOffTries=0u;
+        }else if(!s.rearFogWeAsserted){
+          wantRearFogOn=false;send273=true;
+        }else if(fogFbFresh&&s.rearFogLampOn&&s.rearFogTurnOffTries<3u){
+          if(s.lastRearFogAttempt==0u||uint32_t(now-s.lastRearFogAttempt)>=450u){
+            wantRearFogOn=true;send273=true;
+          }
+        }else{
+          wantRearFogOn=false;send273=true;
+          s.rearFogWeAsserted=false;s.rearFogTurnOffTries=0u;
+        }
       }
       if(send273){
-        send=true;txTarget=TX_REAR_FOG_273;
-        out.can_id=LIGHTING_ID_VEHICLE_CONTROL;out.can_dlc=s.vcCtrl.dlc>=3u?s.vcCtrl.dlc:8u;
-        memcpy(out.data,s.vcCtrl.data,8);
-        out.data[LIGHTING_273_D2]=wantRearFogOn
-          ?(uint8_t)(out.data[LIGHTING_273_D2]|LIGHTING_273_REAR_FOG_MASK)
-          :(uint8_t)(out.data[LIGHTING_273_D2]&~LIGHTING_273_REAR_FOG_MASK);
+        sendFog=true;
+        fogOut.can_id=LIGHTING_ID_VEHICLE_CONTROL;fogOut.can_dlc=s.vcCtrl.dlc>=3u?s.vcCtrl.dlc:8u;
+        memcpy(fogOut.data,s.vcCtrl.data,8);
+        fogOut.data[LIGHTING_273_D2]=wantRearFogOn
+          ?(uint8_t)(fogOut.data[LIGHTING_273_D2]|LIGHTING_273_REAR_FOG_MASK)
+          :(uint8_t)(fogOut.data[LIGHTING_273_D2]&~LIGHTING_273_REAR_FOG_MASK);
         s.lastRearFogAttempt=now;
       }
     }
   }
   portEXIT_CRITICAL(&lightingSettingsMux);
-  if(send){
-    const esp_err_t result=p4CanSendFrame(&out);
+  if(sendBody){
+    const esp_err_t result=p4CanSendFrame(&bodyOut);
     portENTER_CRITICAL(&lightingSettingsMux);
     if(result==ESP_OK){
       lightingTxOk++;
-      if(txTarget==TX_STALK_AP1||txTarget==TX_STALK_STROBE||txTarget==TX_STALK_STROBE_REL||txTarget==TX_STALK_HORN||txTarget==TX_STALK_HORN_REL){
-        s.stalk.counter=counter;s.stalk.sent=true;s.stalk.sentMs=now;memcpy(s.stalk.last,out.data,out.can_dlc);
-        if(txTarget==TX_STALK_AP1)lightingAp1PushSentPure(s.train);
-        else if(txTarget==TX_STALK_STROBE_REL)s.strobeReleaseNeeded=false;
-        else if(txTarget==TX_STALK_HORN_REL)s.horn.releaseNeeded=false;
-      }else if(txTarget==TX_BODY_3E9){
-        s.body.counter=counter;s.body.sent=true;s.body.sentMs=now;memcpy(s.body.last,out.data,out.can_dlc);
-        s.dynSent=requested;
-        s.horn3e9Sent=horn3e9Next;
-      }else if(txTarget==TX_REAR_FOG_273){
-        s.vcCtrl.sent=true;s.vcCtrl.sentMs=now;memcpy(s.vcCtrl.last,out.data,8);
-        s.rearFogAsserted=wantRearFogOn;
-        if(isBurstEdge&&s.rearFogBurstEdges>0u){
-          s.rearFogBurstEdges--;
-          s.rearFogBurstLevel=wantRearFogOn;
-          s.lastRearFogEdgeMs=now;
-        }
+      s.body.counter=bodyCounter;s.body.sent=true;s.body.sentMs=now;memcpy(s.body.last,bodyOut.data,8);
+      s.dynSent=requested;s.horn3e9Sent=horn3e9Next;
+    }else lightingTxFail++;
+    portEXIT_CRITICAL(&lightingSettingsMux);
+  }
+  if(sendStalk){
+    const esp_err_t result=p4CanSendFrame(&stalkOut);
+    portENTER_CRITICAL(&lightingSettingsMux);
+    if(result==ESP_OK){
+      lightingTxOk++;
+      s.stalk.counter=stalkCounter;s.stalk.sent=true;s.stalk.sentMs=now;memcpy(s.stalk.last,stalkOut.data,stalkOut.can_dlc);
+      if(stalkTarget==STALK_AP1)lightingAp1PushSentPure(s.train);
+      else if(stalkTarget==STALK_STROBE_REL)s.strobeReleaseNeeded=false;
+      else if(stalkTarget==STALK_HORN_REL)s.horn.releaseNeeded=false;
+    }else lightingTxFail++;
+    portEXIT_CRITICAL(&lightingSettingsMux);
+  }
+  if(sendFog){
+    const esp_err_t result=p4CanSendFrame(&fogOut);
+    portENTER_CRITICAL(&lightingSettingsMux);
+    if(result==ESP_OK){
+      lightingTxOk++;
+      s.vcCtrl.sent=true;s.vcCtrl.sentMs=now;memcpy(s.vcCtrl.last,fogOut.data,8);
+      s.rearFogAsserted=wantRearFogOn;
+      if(isBurstEdge&&s.rearFogBurstEdges>0u){
+        s.rearFogBurstEdges--;
+        s.rearFogBurstLevel=wantRearFogOn;
+        s.lastRearFogEdgeMs=now;
+      }else if(fogHoldOffStep){
+        if(s.rearFogHoldOffLeft>0u)s.rearFogHoldOffLeft--;
+        if(s.rearFogHoldOffLeft==0u){s.rearFogWeAsserted=false;s.rearFogAsserted=false;}
+      }else if(wantRearFogOn&&(lightingPilotMode==3u||s.rearFogRevHoldUntilMs!=0u)){
+        s.rearFogWeAsserted=true;
+      }else if(wantRearFogOn&&s.rearFogWeAsserted&&lightingPilotMode!=2u){
+        s.rearFogTurnOffTries++;
+        if(s.rearFogTurnOffTries>=3u){s.rearFogWeAsserted=false;s.rearFogAsserted=false;}
       }
     }else lightingTxFail++;
     portEXIT_CRITICAL(&lightingSettingsMux);

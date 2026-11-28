@@ -1,20 +1,21 @@
-# P4can-universal-noreboot-plus（`3.35.3.2`）
+# P4can-universal-noreboot-plus（`3.35.3.3`）
 
 > **语言 / Language**：**简体中文** | **[English (README.md)](README.md)**
 
-本项目以 **[CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot)**（`v3.35.3-norestart2`）为核心基线与后台界面风格，融合 **[i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more)** 中已在实车 CAN 总线上验证可行的灯光、喇叭与领航模式功能，并完整适配 **ESP32-P4 + ESP32-C5（5GHz 双频 + Wi-Fi 6）** 与 **ESP32-P4 + ESP32-C6** 硬件。
+本项目以 **[CARyanChan/P4can-universal-noreboot](https://github.com/CARyanChan/P4can-universal-noreboot)**（`v3.35.3-norestart2`）为核心基线与后台界面风格，融合 **[i520e3e4/p4can-unlock-more](https://github.com/i520e3e4/p4can-unlock-more)** 中已在实车 CAN 总线上验证可行的灯光、喇叭与领航模式功能，并完整适配 **ESP32-P4 + ESP32-C5（5GHz 双频 + Wi-Fi 6）** 与 **ESP32-P4 + ESP32-C6** 硬件。作者：**一缕微光**、LP_YL、XBmod、Frizull、3dfx、SupXL。
 
 设计第一原则：**防重启模块（`tlssc_norestart.h` / `0x331`）在任何时候均保留最高发送与任务调度优先级（`P4_TLSSC_NR_PRIORITY_YIELD`）**，新增功能绝不抢占防重启窗口。
 
-> **v3.35.3.2 更新内容**：
-> - 修复 **21 款 Model 3 后雾灯功能无效** 问题（放宽车身 `0x273` 模板捕获与保持时效、修正 `0x3E3` 2-bit 状态位解析、提升刷新频率至 `40ms`）。
-> - 修复 **AP 强制远光保持几秒即退出** 问题（跨核时间戳签名防回绕、区分自发 `0x249` 回显、支持冷却自动重激活）。
-> - 新增 **中继 DNS 域名过滤**（关闭 / 黑名单 / 白名单持久化保存至 NVS，掉电/重启不丢失）与 **联网检测返回 200 / 204 伪装有互联网**。
-> - 新增 **模块后台访问地址切换**（默认 `192.168.4.1` / 伪公网 `100.100.1.1`），适配无法访问 `192.168.4.1` 私有地址的设备，并更新开源仓库地址为 `https://github.com/VictorHall6055/P4can-universal-noreboot-plus`。
+> **v3.35.3.3 更新内容**：
+> - 修复 **倒车自动开启后雾灯闪烁不常亮** 问题（增加 250ms 倒车防抖及 `0x3E3` 状态闭环自适应切换/电平保持发送逻辑）。
+> - 修复 **AP 强制远光无法保持** 问题（彻底清除跨核时间戳减法回绕，防止 `0x249` 自发回显破坏释放模板，解除 `0x3E9` 与繁忙分支互斥）。
+> - 修复 **车辆封禁开关打开后每次休眠唤醒上车导致车机自动重启** 问题（NVS 精确保存 `0x331` 长度（Model 3/Y 为 6 字节）、解除慢速 CAN-A 就绪阻塞、增加 CAN-B 唤醒 50ms 高频瞬时重放）。
+> - 新增 **UDP `42100` 热点中继局域网发现监听** 与 **新版三模式 Android 控制端 App（`v1.3.0`）**：支持 ① 原版 AP 直连（`192.168.4.1`）、② 手机热点中继免切 Wi-Fi 直连、③ 伪公网 IP（`100.100.1.1`）保存与直连。
+> - 关于页开发者首位署名新增 **一缕微光**，固件版本升级至 `3.35.3.3`。
 
 <p align="center">
   <img src="docs/images/wifi-dns-filter.png" alt="中继域名过滤与 200/204 联网检测伪装" width="380" />
-  <img src="docs/images/about-v33532.png" alt="关于页面 3.35.3.2" width="380" />
+  <img src="docs/images/about-v33533.png" alt="关于页面 3.35.3.3" width="380" />
 </p>
 
 ---
@@ -59,6 +60,12 @@
 <p align="center">
   <img src="docs/images/home-overview.png" alt="主页顶部温度与运行时长显示" width="380" />
 </p>
+
+### 5. 全新多模式 Android 控制端 App（`android-app/`，`v1.3.0`）
+安装包直接下载：**[P4can-App-v1.3.0-multi-mode.apk](android-app/P4can-App-v1.3.0-multi-mode.apk)**（同时随 **GitHub Releases** 附带发布；由于更换签名，请先卸载旧版 `1.2.1` 后安装）：
+- **模式 1 · 原始 AP 直连（`192.168.4.1`）**：保留原版自动/手动连接模块 Wi-Fi 逻辑。
+- **模式 2 · 手机热点中继连接（免连 ESP32 热点）**：当手机已开启个人热点供 ESP32 中继联网时，无需再将手机 Wi-Fi 切去连模块；App 通过 **UDP `42100` 广播发现** + 热点网段并发探测自动定位 ESP32 并打开控制台，手机移动网络与热点全程在线（亦支持手动指定固定 IP）。
+- **模式 3 · 伪公网 IP 直连（`100.100.1.1`）**：解除原版仅允许 `192.168.4.1` HTTP 保存与明文访问的限制，支持直接保存并连接 `100.100.1.1` 或其它合法内网 IPv4 地址。
 
 ---
 

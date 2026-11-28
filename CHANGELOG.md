@@ -1,3 +1,12 @@
+# P4-CAN Universal 3.35.3.3 — 2026-11-28
+
+基于 [VictorHall6055/P4can-universal-noreboot-plus](https://github.com/VictorHall6055/P4can-universal-noreboot-plus)（版本号 `3.35.3.3`，关于页作者署名首位新增「一缕微光」）：
+
+- **修复倒车自动开启后雾灯闪烁不常亮问题（`lighting/lighting_runtime.h`）**：修复跨核毫秒回绕导致的 R 挡状态抖动，增加 250 ms 倒车防抖，并引入基于 `0x3E3` 反馈与车端 UI `0x273=0` 检测的「状态翻转 / 10ms 高频电平保持」自适应闭环策略，消除 500ms 原车报文覆盖导致的频繁明灭。
+- **修复 AP 强制远光仍无法保持问题（`lighting/`）**：清理全部剩余无符号时间差比较，阻止自发 `0x249` `PUSH` 回显破坏连发模板（保持 `dir==0` 基准模板完整），并将 `0x3E9` 保活与高优先级分支解耦以免被饥饿丢弃。
+- **修复开启车辆封禁后每次休眠唤醒车机自动重启问题（`tlssc_norestart.h`, `can_runtime.h`）**：NVS 持久化并自动修正 Model 3/Y 原车 `0x331` 实际报文长度（6 字节而非固定 8 字节）；唤醒阶段取消等待慢速 CAN-A 就绪的 `CAN_TX_FRESH_BOTH` 门槛（改为 `CAN_TX_FRESH_VH`）与非召唤拥塞丢弃；`canTaskTwai` 休眠唤醒首帧立即唤醒 `tlsscNrTask` 开启 50 ms 高频瞬时重放（缩短休眠判定窗口至 6 s）。
+- **新增热点中继发现与 Android 控制端 v1.3.0**：固件 `p4_dns_filter.h` 在 UDP 42100 端口监听并返回 `{"p4can":true,"fw":"3.35.3.3","staIp":...}`；重构 Android 客户端 `dev.t2can.unlock`（v1.3.0），彻底解除 `192.168.4.1` 单地址限制，提供「1. AP 直连 (192.168.4.1) / 2. 手机热点中继免切 Wi-Fi 直连 / 3. 伪公网 (100.100.1.1)」三种连接模式。
+
 # P4-CAN Universal 3.35.3.2 — 2026-11-28
 
 基于 [VictorHall6055/P4can-universal-noreboot-plus](https://github.com/VictorHall6055/P4can-universal-noreboot-plus)（版本号 `3.35.3.2`）：

@@ -80,7 +80,7 @@
 #include "json_writer_arduino.h"
 
 // 上游 v3.35.3 基线 + P4can-No-Reboot 免重启 + 灯光/领航模式 + Wi-Fi 中继增强
-#define FW_VERSION "3.35.3.2"
+#define FW_VERSION "3.35.3.3"
 
 #include "continuous_ap_fsm_pure.h"
 #include "p4can_core_state.h"

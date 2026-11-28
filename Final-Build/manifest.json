@@ -1,42 +1,42 @@
 [
   {
     "file": "P4can-universal-noreboot.C5.en.OTA.REV3.X.bin",
-    "size": 1612112,
-    "sha256": "cfe23da1f39e7facf55fcd81bdb6d01802ef8811669f82655e35b8083dae02e9"
+    "size": 1614352,
+    "sha256": "c65249e5453f695ffa54aa608de055b4691d7f48a0426681ab089143e5a4199c"
   },
   {
     "file": "P4can-universal-noreboot.C5.en.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "4d218f868828134f153b709f576bb1d276c7033c9e54fba904a9ad7f9d051189"
+    "sha256": "9749451043de8657ff3ec951f1adf5ef04dbcb32c2888aa4127056f4df482d69"
   },
   {
     "file": "P4can-universal-noreboot.C5.zh-CN.OTA.REV3.X.bin",
-    "size": 1617440,
-    "sha256": "d291cf41bbe459690a250f3a6638e7d22ee49bc0dadcd6053288d00d503c2f54"
+    "size": 1619664,
+    "sha256": "ef3c9fbb15ad71054c44d34c6f2e1754f6d33259d5715a6f84f173316f5b07c9"
   },
   {
     "file": "P4can-universal-noreboot.C5.zh-CN.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "945d8e66fc867ca29c31182045ca51353ec990c1b8cb8401751f5b9ccd238b5c"
+    "sha256": "3ed03c156ecd6db53778f91b64c02208ea5cb3dca8261d673134ed49880a4d9e"
   },
   {
     "file": "P4can-universal-noreboot.C6.en.OTA.REV3.X.bin",
-    "size": 1611888,
-    "sha256": "013b3ad2392e87c30a1df95b12554add335493328d0e52e16ac650fe83ebfa2b"
+    "size": 1614128,
+    "sha256": "076660c3a6caf855b714b1380343a0ca3a11479ccc8804fd0c0986f8c66b35cd"
   },
   {
     "file": "P4can-universal-noreboot.C6.en.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "b52c81e123c97d236c94f6b927fc4ae2a11ec59d93c0e065a7f74248dd0de497"
+    "sha256": "75f3c876f65ff77728d6a08f63038cdb594ff0ae99b259679a633cea6ffae58b"
   },
   {
     "file": "P4can-universal-noreboot.C6.zh-CN.OTA.REV3.X.bin",
-    "size": 1617216,
-    "sha256": "eb9a3c07d68b99f10ad2717929100c3c4976cd0257aab739d237c74f987ef907"
+    "size": 1619440,
+    "sha256": "aa32f46f885dc131bf24b9c8b4c705ba78fd145c73ed06a5002ad377ef4d7433"
   },
   {
     "file": "P4can-universal-noreboot.C6.zh-CN.FULLFLASH.REV3.X.merged.bin",
     "size": 33554432,
-    "sha256": "7df0d67bdf7dfe38425174187b435e6a5d7c120d9e612692071942a2983167b2"
+    "sha256": "5dd6b9452ad486d22507d1db513f1486a1e01a698166843a6f56b3e966d7fc80"
   }
 ]
